@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Deepak Video Player</string>
+    <string name="nav_home">Inicio</string>
+    <string name="nav_videos">Videos</string>
+    <string name="nav_folders">Carpetas</string>
+    <string name="nav_playlists">Listas</string>
+    <string name="nav_settings">Ajustes</string>
+    <string name="continue_watching">Seguir viendo</string>
+    <string name="recently_played">Reproducidos recientemente</string>
+    <string name="recently_added">Añadidos recientemente</string>
+    <string name="favorites">Favoritos</string>
+    <string name="all_videos">Todos los videos</string>
+    <string name="network_stream">Transmisión en red</string>
+    <string name="search_videos_hint">Buscar videos o carpetas...</string>
+    <string name="scan_device_videos">Escanear videos</string>
+    <string name="browse_saf">Explorar archivos (SAF)</string>
+    <string name="mount_external_folder">Montar carpeta</string>
+    <string name="create_playlist">Nueva lista</string>
+    <string name="privacy_policy_title">Política de privacidad</string>
+    <string name="about_app_title">Acerca de Deepak Video Player</string>
+    <string name="clear_history">Borrar historial</string>
+</resources>

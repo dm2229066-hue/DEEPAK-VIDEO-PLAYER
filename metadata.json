@@ -1,0 +1,6 @@
+{
+  "name": "Deepak Video Player",
+  "description": "Professional Android video player with Media3 ExoPlayer, gesture controls, subtitle and audio engine, file manager, and AdMob monetization.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

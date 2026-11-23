@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Deepak Video Player</string>
+    <string name="nav_home">होम</string>
+    <string name="nav_videos">वीडियो</string>
+    <string name="nav_folders">फ़ोल्डर</string>
+    <string name="nav_playlists">प्लेलिस्ट</string>
+    <string name="nav_settings">सेटिंग्स</string>
+    <string name="continue_watching">देखना जारी रखें</string>
+    <string name="recently_played">हाल ही में चलाए गए</string>
+    <string name="recently_added">हाल ही में जोड़े गए</string>
+    <string name="favorites">पसंदीदा</string>
+    <string name="all_videos">सभी वीडियो</string>
+    <string name="network_stream">नेटवर्क स्ट्रीम</string>
+    <string name="search_videos_hint">वीडियो या फ़ोल्डर खोजें...</string>
+    <string name="scan_device_videos">डिवाइस वीडियो स्कैन करें</string>
+    <string name="browse_saf">फ़ाइलें ब्राउज़ करें (SAF)</string>
+    <string name="mount_external_folder">फ़ोल्डर जोड़ें</string>
+    <string name="create_playlist">नई प्लेलिस्ट</string>
+    <string name="privacy_policy_title">गोपनीयता नीति</string>
+    <string name="about_app_title">Deepak Video Player के बारे में</string>
+    <string name="clear_history">प्लेबैक इतिहास साफ़ करें</string>
+</resources>
