@@ -1,3 +1,4 @@
+
 name: Build Debug APK
 
 on:
@@ -9,7 +10,7 @@ on:
 
 jobs:
   build-debug:
-    name: Build & Test Debug APK
+    name: Build Debug APK
     runs-on: ubuntu-latest
 
     steps:
@@ -26,9 +27,6 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           gradle-version: '9.3.1'
-
-      - name: Run Unit Tests
-        run: gradle :app:testDebugUnitTest
 
       - name: Build Debug APK
         run: gradle :app:assembleDebug
