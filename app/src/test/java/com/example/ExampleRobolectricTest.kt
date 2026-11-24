@@ -8,10 +8,12 @@ import com.example.data.local.FavoriteVideoEntity
 import com.example.data.local.PlaybackHistoryEntity
 import com.example.data.local.PlaylistEntity
 import com.example.data.local.PlaylistVideoCrossRef
+import com.example.ui.viewmodel.PlayerViewModel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -77,5 +79,38 @@ class ExampleRobolectricTest {
         assertEquals(1, playlists.size)
         assertEquals("Action", playlists.first().playlist.name)
         assertEquals(1, playlists.first().items.size)
+    }
+
+    @Test
+    fun playerViewModelSeekingMovesForwardBackwardAndHandlesRapidSeeks() {
+        val app = ApplicationProvider.getApplicationContext<DeepakPlayerApp>()
+        val viewModel = PlayerViewModel(app)
+
+        // Seek forward from 0 -> 120s
+        viewModel.seekTo(120_000L)
+        assertEquals(120_000L, viewModel.uiState.value.positionMs)
+
+        // Rapid repeated forward +10s seeks
+        viewModel.seekBy(10_000L)
+        viewModel.seekBy(10_000L)
+        viewModel.seekBy(10_000L)
+        assertEquals(150_000L, viewModel.uiState.value.positionMs)
+        assertEquals(150_000L, viewModel.getEffectivePositionMs())
+
+        // Backward -10s seek
+        viewModel.seekBy(-10_000L)
+        assertEquals(140_000L, viewModel.uiState.value.positionMs)
+
+        // Seekbar backward drag
+        viewModel.seekTo(45_000L)
+        assertEquals(45_000L, viewModel.uiState.value.positionMs)
+
+        // Clamps to 0 when seeking before start
+        viewModel.seekBy(-100_000L)
+        assertEquals(0L, viewModel.uiState.value.positionMs)
+
+        // Unknown duration (0L) forward seek does not jump back to 0
+        viewModel.seekTo(30_000L)
+        assertTrue(viewModel.uiState.value.positionMs >= 30_000L)
     }
 }

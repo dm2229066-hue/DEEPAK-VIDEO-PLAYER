@@ -78,6 +78,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -108,9 +109,41 @@ import com.example.ui.viewmodel.PlayerOrientationMode
 import com.example.ui.viewmodel.PlayerViewModel
 import kotlinx.coroutines.delay
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 private enum class ActiveGestureMode {
     NONE, SEEK, BRIGHTNESS, VOLUME, ZOOM
+}
+
+internal data class SwipeSeekResult(
+    val targetMs: Long,
+    val appliedDeltaMs: Long
+)
+
+internal fun calculateSwipeSeek(
+    initialPositionMs: Long,
+    deltaPx: Float,
+    containerWidthPx: Float,
+    durationMs: Long
+): SwipeSeekResult {
+    val safeInitial = initialPositionMs.coerceAtLeast(0L)
+    val safeWidth = containerWidthPx.coerceAtLeast(1f)
+    val seekSpanMs = if (durationMs > 0L) {
+        minOf(90_000L, maxOf(durationMs, 10_000L))
+    } else {
+        90_000L
+    }
+    val rawDeltaMs = ((deltaPx / safeWidth) * seekSpanMs.toFloat()).roundToLong()
+    val unclampedTarget = safeInitial + rawDeltaMs
+    val targetMs = if (durationMs > 0L) {
+        unclampedTarget.coerceIn(0L, durationMs)
+    } else {
+        unclampedTarget.coerceAtLeast(0L)
+    }
+    return SwipeSeekResult(
+        targetMs = targetMs,
+        appliedDeltaMs = targetMs - safeInitial
+    )
 }
 
 @OptIn(UnstableApi::class)
@@ -136,12 +169,16 @@ fun PlayerScreen(
 
     var containerSize by remember { mutableStateOf(IntSize.Zero) }
     var activeGesture by remember { mutableStateOf(ActiveGestureMode.NONE) }
+    var activeSeekDirection by remember { mutableIntStateOf(0) }
     var gestureFeedbackText by remember { mutableStateOf<String?>(null) }
     var gestureProgress by remember { mutableFloatStateOf(0f) }
     var doubleTapBurstText by remember { mutableStateOf<String?>(null) }
 
     var isScrubbing by remember { mutableStateOf(false) }
     var scrubPositionMs by remember { mutableLongStateOf(0L) }
+
+    val latestUiState by rememberUpdatedState(uiState)
+    val latestContainerSize by rememberUpdatedState(containerSize)
 
     var currentBrightness by remember {
         mutableFloatStateOf(
@@ -192,8 +229,16 @@ fun PlayerScreen(
     }
 
     // Auto-hide controls while playing
-    LaunchedEffect(controlsVisible, uiState.isPlaying, uiState.isLocked, showSubtitleSheet, showAudioSheet, showToolsSheet) {
-        if (controlsVisible && uiState.isPlaying && !showSubtitleSheet && !showAudioSheet && !showToolsSheet) {
+    LaunchedEffect(
+        controlsVisible,
+        uiState.isPlaying,
+        uiState.isLocked,
+        isScrubbing,
+        showSubtitleSheet,
+        showAudioSheet,
+        showToolsSheet
+    ) {
+        if (controlsVisible && uiState.isPlaying && !isScrubbing && !showSubtitleSheet && !showAudioSheet && !showToolsSheet) {
             delay(3600L)
             controlsVisible = false
         }
@@ -295,14 +340,15 @@ fun PlayerScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(uiState.isLocked, uiState.gesturesEnabled, containerSize) {
+                    .pointerInput(uiState.isLocked, uiState.gesturesEnabled) {
                         detectTapGestures(
                             onTap = {
                                 controlsVisible = !controlsVisible
                             },
                             onDoubleTap = { offset ->
-                                if (uiState.isLocked || !uiState.gesturesEnabled) return@detectTapGestures
-                                val w = containerSize.width.toFloat().coerceAtLeast(1f)
+                                val current = latestUiState
+                                if (current.isLocked || !current.gesturesEnabled) return@detectTapGestures
+                                val w = latestContainerSize.width.toFloat().coerceAtLeast(1f)
                                 when {
                                     offset.x < w / 3f -> {
                                         viewModel.seekBy(-10_000L)
@@ -314,113 +360,139 @@ fun PlayerScreen(
                                     }
                                     else -> {
                                         viewModel.togglePlayPause()
-                                        doubleTapBurstText = if (uiState.isPlaying) "Pause" else "Play"
+                                        doubleTapBurstText = if (current.isPlaying) "Pause" else "Play"
                                     }
                                 }
                             }
                         )
                     }
-                    .pointerInput(uiState.isLocked, uiState.gesturesEnabled, containerSize, uiState.durationMs) {
+                    .pointerInput(uiState.isLocked, uiState.gesturesEnabled) {
                         awaitEachGesture {
                             val down = awaitFirstDown(requireUnconsumed = false)
-                            if (uiState.isLocked || !uiState.gesturesEnabled) return@awaitEachGesture
+                            if (latestUiState.isLocked || !latestUiState.gesturesEnabled) return@awaitEachGesture
 
-                            val startX = down.position.x
+                            var activePointerId = down.id
+                            var startX = down.position.x
                             val startY = down.position.y
-                            var lastX = startX
                             var lastY = startY
                             var mode = ActiveGestureMode.NONE
-                            var initialSeekPos = viewModel.player.currentPosition.coerceAtLeast(0L)
-                            var accumulatedSeekDelta = 0L
-                            var zoomAccum = uiState.zoomScale
+                            var initialSeekPos = viewModel.getEffectivePositionMs()
+                            var seekOriginDeltaPx = 0f
+                            var committedSeekTargetMs = initialSeekPos
+                            var hasSeekTarget = false
+                            var zoomAccum = latestUiState.zoomScale
 
-                            while (true) {
-                                val event = awaitPointerEvent()
-                                val pressedCount = event.changes.count { it.pressed }
-                                if (pressedCount == 0) break
+                            try {
+                                while (true) {
+                                    val event = awaitPointerEvent()
+                                    val pressedChanges = event.changes.filter { it.pressed }
+                                    if (pressedChanges.isEmpty()) break
 
-                                if (pressedCount >= 2) {
-                                    val zoomChange = event.calculateZoom()
-                                    if (zoomChange != 1f) {
-                                        mode = ActiveGestureMode.ZOOM
-                                        activeGesture = ActiveGestureMode.ZOOM
-                                        zoomAccum = (zoomAccum * zoomChange).coerceIn(0.5f, 4.0f)
-                                        viewModel.updateZoomScale(zoomAccum)
-                                        gestureFeedbackText = "Zoom ${(zoomAccum * 100).toInt()}%"
-                                        gestureProgress = ((zoomAccum - 0.5f) / 3.5f).coerceIn(0f, 1f)
-                                        event.changes.forEach { it.consume() }
-                                    }
-                                    continue
-                                }
-
-                                val change = event.changes.first()
-                                val dx = change.position.x - lastX
-                                val dy = change.position.y - lastY
-                                lastX = change.position.x
-                                lastY = change.position.y
-
-                                val totalDx = change.position.x - startX
-                                val totalDy = change.position.y - startY
-
-                                if (mode == ActiveGestureMode.NONE) {
-                                    val slop = viewConfiguration.touchSlop * 1.4f
-                                    if (abs(totalDx) > slop || abs(totalDy) > slop) {
-                                        mode = when {
-                                            abs(totalDx) > abs(totalDy) -> ActiveGestureMode.SEEK
-                                            startX < containerSize.width / 2f -> ActiveGestureMode.BRIGHTNESS
-                                            else -> ActiveGestureMode.VOLUME
+                                    if (pressedChanges.size >= 2) {
+                                        val zoomChange = event.calculateZoom()
+                                        if (zoomChange != 1f) {
+                                            if (mode == ActiveGestureMode.SEEK) {
+                                                isScrubbing = false
+                                                hasSeekTarget = false
+                                            }
+                                            mode = ActiveGestureMode.ZOOM
+                                            activeGesture = ActiveGestureMode.ZOOM
+                                            zoomAccum = (zoomAccum * zoomChange).coerceIn(0.5f, 4.0f)
+                                            viewModel.updateZoomScale(zoomAccum)
+                                            gestureFeedbackText = "Zoom ${(zoomAccum * 100).toInt()}%"
+                                            gestureProgress = ((zoomAccum - 0.5f) / 3.5f).coerceIn(0f, 1f)
+                                            event.changes.forEach { it.consume() }
                                         }
-                                        activeGesture = mode
-                                        initialSeekPos = viewModel.player.currentPosition.coerceAtLeast(0L)
+                                        continue
                                     }
-                                }
 
-                                when (mode) {
-                                    ActiveGestureMode.SEEK -> {
-                                        change.consume()
-                                        val w = containerSize.width.toFloat().coerceAtLeast(1f)
-                                        val deltaMs = ((dx / w) * 90_000f).toLong()
-                                        accumulatedSeekDelta += deltaMs
-                                        val dur = uiState.durationMs.takeIf { it > 0 } ?: 1L
-                                        val target = (initialSeekPos + accumulatedSeekDelta).coerceIn(0L, dur)
-                                        isScrubbing = true
-                                        scrubPositionMs = target
-                                        val sign = if (accumulatedSeekDelta >= 0) "+" else "-"
-                                        gestureFeedbackText =
-                                            "${FormatUtils.formatDuration(target)} ($sign${FormatUtils.formatDuration(abs(accumulatedSeekDelta))})"
-                                        gestureProgress = (target.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
-                                    }
-                                    ActiveGestureMode.BRIGHTNESS -> {
-                                        change.consume()
-                                        val h = containerSize.height.toFloat().coerceAtLeast(1f)
-                                        currentBrightness = (currentBrightness - (dy / h)).coerceIn(0.01f, 1.0f)
-                                        activity?.window?.let { win ->
-                                            val attrs = win.attributes
-                                            attrs.screenBrightness = currentBrightness
-                                            win.attributes = attrs
+                                    val change = pressedChanges.firstOrNull { it.id == activePointerId }
+                                        ?: pressedChanges.first().also { switched ->
+                                            activePointerId = switched.id
+                                            startX = switched.position.x - seekOriginDeltaPx
+                                            lastY = switched.position.y
                                         }
-                                        gestureFeedbackText = "Brightness ${(currentBrightness * 100).toInt()}%"
-                                        gestureProgress = currentBrightness
-                                    }
-                                    ActiveGestureMode.VOLUME -> {
-                                        change.consume()
-                                        val h = containerSize.height.toFloat().coerceAtLeast(1f)
-                                        currentVolumeFloat = (currentVolumeFloat - (dy / h)).coerceIn(0f, 1f)
-                                        val newVol = (currentVolumeFloat * maxVolume).toInt().coerceIn(0, maxVolume)
-                                        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
-                                        gestureFeedbackText = "Volume ${(currentVolumeFloat * 100).toInt()}%"
-                                        gestureProgress = currentVolumeFloat
-                                    }
-                                    else -> Unit
-                                }
-                            }
 
-                            if (mode == ActiveGestureMode.SEEK) {
-                                viewModel.seekTo(scrubPositionMs)
+                                    val dy = change.position.y - lastY
+                                    lastY = change.position.y
+
+                                    val totalDx = change.position.x - startX
+                                    val totalDy = change.position.y - startY
+
+                                    if (mode == ActiveGestureMode.NONE) {
+                                        val slop = viewConfiguration.touchSlop * 1.4f
+                                        if (abs(totalDx) > slop || abs(totalDy) > slop) {
+                                            val viewW = latestContainerSize.width.toFloat().coerceAtLeast(1f)
+                                            mode = when {
+                                                abs(totalDx) > abs(totalDy) -> ActiveGestureMode.SEEK
+                                                startX < viewW / 2f -> ActiveGestureMode.BRIGHTNESS
+                                                else -> ActiveGestureMode.VOLUME
+                                            }
+                                            activeGesture = mode
+                                            initialSeekPos = viewModel.getEffectivePositionMs()
+                                            startX = change.position.x
+                                        }
+                                    }
+
+                                    when (mode) {
+                                        ActiveGestureMode.SEEK -> {
+                                            change.consume()
+                                            seekOriginDeltaPx = change.position.x - startX
+                                            val w = latestContainerSize.width.toFloat().coerceAtLeast(1f)
+                                            val dur = viewModel.resolveDurationMs(latestUiState.durationMs)
+                                            val seekResult = calculateSwipeSeek(
+                                                initialPositionMs = initialSeekPos,
+                                                deltaPx = seekOriginDeltaPx,
+                                                containerWidthPx = w,
+                                                durationMs = dur
+                                            )
+                                            committedSeekTargetMs = seekResult.targetMs
+                                            hasSeekTarget = true
+                                            isScrubbing = true
+                                            scrubPositionMs = seekResult.targetMs
+                                            activeSeekDirection = if (seekResult.appliedDeltaMs < 0L) -1 else 1
+                                            val sign = if (seekResult.appliedDeltaMs >= 0L) "+" else "-"
+                                            gestureFeedbackText =
+                                                "${FormatUtils.formatDuration(seekResult.targetMs)} ($sign${FormatUtils.formatDuration(abs(seekResult.appliedDeltaMs))})"
+                                            gestureProgress = if (dur > 0L) {
+                                                (seekResult.targetMs.toFloat() / dur.toFloat()).coerceIn(0f, 1f)
+                                            } else {
+                                                0f
+                                            }
+                                        }
+                                        ActiveGestureMode.BRIGHTNESS -> {
+                                            change.consume()
+                                            val h = latestContainerSize.height.toFloat().coerceAtLeast(1f)
+                                            currentBrightness = (currentBrightness - (dy / h)).coerceIn(0.01f, 1.0f)
+                                            activity?.window?.let { win ->
+                                                val attrs = win.attributes
+                                                attrs.screenBrightness = currentBrightness
+                                                win.attributes = attrs
+                                            }
+                                            gestureFeedbackText = "Brightness ${(currentBrightness * 100).toInt()}%"
+                                            gestureProgress = currentBrightness
+                                        }
+                                        ActiveGestureMode.VOLUME -> {
+                                            change.consume()
+                                            val h = latestContainerSize.height.toFloat().coerceAtLeast(1f)
+                                            currentVolumeFloat = (currentVolumeFloat - (dy / h)).coerceIn(0f, 1f)
+                                            val newVol = (currentVolumeFloat * maxVolume).toInt().coerceIn(0, maxVolume)
+                                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, newVol, 0)
+                                            gestureFeedbackText = "Volume ${(currentVolumeFloat * 100).toInt()}%"
+                                            gestureProgress = currentVolumeFloat
+                                        }
+                                        else -> Unit
+                                    }
+                                }
+
+                                if (mode == ActiveGestureMode.SEEK && hasSeekTarget) {
+                                    viewModel.seekTo(committedSeekTargetMs)
+                                }
+                            } finally {
                                 isScrubbing = false
+                                activeGesture = ActiveGestureMode.NONE
+                                gestureFeedbackText = null
                             }
-                            activeGesture = ActiveGestureMode.NONE
-                            gestureFeedbackText = null
                         }
                     }
             )
@@ -456,7 +528,7 @@ fun PlayerScreen(
                         ActiveGestureMode.BRIGHTNESS -> Icons.Rounded.BrightnessHigh
                         ActiveGestureMode.VOLUME -> Icons.AutoMirrored.Rounded.VolumeUp
                         ActiveGestureMode.ZOOM -> Icons.Rounded.ZoomOutMap
-                        else -> Icons.Rounded.Forward10
+                        else -> if (activeSeekDirection < 0) Icons.Rounded.Replay10 else Icons.Rounded.Forward10
                     }
                     Icon(
                         imageVector = hudIcon,
@@ -762,8 +834,10 @@ fun PlayerScreen(
                                     .fillMaxWidth()
                                     .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
+                                val totalDurMs = uiState.durationMs.coerceAtLeast(0L)
+                                val isSeekable = totalDurMs > 0L
                                 val displayPos = if (isScrubbing) scrubPositionMs else uiState.positionMs
-                                val maxDur = uiState.durationMs.coerceAtLeast(1L)
+                                val sliderMax = totalDurMs.coerceAtLeast(1L).toFloat()
 
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -775,16 +849,25 @@ fun PlayerScreen(
                                         color = Color.White
                                     )
                                     Slider(
-                                        value = displayPos.toFloat().coerceIn(0f, maxDur.toFloat()),
-                                        onValueChange = {
+                                        value = if (isSeekable) {
+                                            displayPos.toFloat().coerceIn(0f, sliderMax)
+                                        } else {
+                                            0f
+                                        },
+                                        enabled = isSeekable,
+                                        onValueChange = { rawValue ->
+                                            if (!isSeekable) return@Slider
+                                            val target = rawValue.roundToLong().coerceIn(0L, totalDurMs)
                                             isScrubbing = true
-                                            scrubPositionMs = it.toLong()
+                                            scrubPositionMs = target
                                         },
                                         onValueChangeFinished = {
-                                            viewModel.seekTo(scrubPositionMs)
+                                            if (isSeekable && isScrubbing) {
+                                                viewModel.seekTo(scrubPositionMs)
+                                            }
                                             isScrubbing = false
                                         },
-                                        valueRange = 0f..maxDur.toFloat(),
+                                        valueRange = 0f..sliderMax,
                                         colors = SliderDefaults.colors(
                                             thumbColor = MaterialTheme.colorScheme.primary,
                                             activeTrackColor = MaterialTheme.colorScheme.primary,
@@ -796,7 +879,7 @@ fun PlayerScreen(
                                             .testTag("player_seekbar")
                                     )
                                     Text(
-                                        text = FormatUtils.formatDuration(uiState.durationMs),
+                                        text = FormatUtils.formatDuration(totalDurMs),
                                         style = MaterialTheme.typography.labelMedium,
                                         color = Color.White
                                     )

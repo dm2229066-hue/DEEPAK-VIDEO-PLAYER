@@ -2,6 +2,7 @@ package com.example.ui.viewmodel
 
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import androidx.annotation.OptIn
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -9,6 +10,7 @@ import androidx.media3.common.C
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
+import androidx.media3.common.Timeline
 import androidx.media3.common.Tracks
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
@@ -27,6 +29,102 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlin.math.abs
+
+internal class SeekStateTracker(
+    private val nowMs: () -> Long = { SystemClock.elapsedRealtime() },
+    private val settleTimeoutMs: Long = 1500L,
+    private val settleToleranceMs: Long = 1500L
+) {
+    var pendingTargetMs: Long? = null
+        private set
+    private var seekOriginMs: Long = 0L
+    private var seekStartedAtMs: Long = 0L
+    private var pendingDeadlineMs: Long = 0L
+
+    fun beginSeek(targetMs: Long, originMs: Long) {
+        val now = nowMs()
+        pendingTargetMs = targetMs.coerceAtLeast(0L)
+        seekOriginMs = originMs.coerceAtLeast(0L)
+        seekStartedAtMs = now
+        pendingDeadlineMs = now + settleTimeoutMs
+    }
+
+    fun updatePendingTarget(adjustedMs: Long) {
+        if (pendingTargetMs != null) {
+            pendingTargetMs = adjustedMs.coerceAtLeast(0L)
+        }
+    }
+
+    fun clear() {
+        pendingTargetMs = null
+        seekOriginMs = 0L
+        seekStartedAtMs = 0L
+        pendingDeadlineMs = 0L
+    }
+
+    fun effectivePositionMs(playerPositionMs: Long, isReady: Boolean): Long {
+        val safePlayerPos = playerPositionMs.coerceAtLeast(0L)
+        val pending = pendingTargetMs ?: return safePlayerPos
+        return if (hasSettled(safePlayerPos, pending, isReady, isPlaying = true)) {
+            clear()
+            safePlayerPos
+        } else {
+            pending
+        }
+    }
+
+    fun resolveTickerPosition(
+        playerPositionMs: Long,
+        isReady: Boolean,
+        isPlaying: Boolean
+    ): Long {
+        val safePlayerPos = playerPositionMs.coerceAtLeast(0L)
+        val pending = pendingTargetMs ?: return safePlayerPos
+        return if (hasSettled(safePlayerPos, pending, isReady, isPlaying)) {
+            clear()
+            safePlayerPos
+        } else {
+            pending
+        }
+    }
+
+    private fun hasSettled(
+        playerPositionMs: Long,
+        pending: Long,
+        isReady: Boolean,
+        isPlaying: Boolean
+    ): Boolean {
+        val now = nowMs()
+        val hardTimedOut = now >= pendingDeadlineMs + settleTimeoutMs
+        if (hardTimedOut) return true
+
+        val softTimedOut = now >= pendingDeadlineMs && (isReady || !isPlaying)
+        if (softTimedOut) return true
+
+        if (!isReady) return false
+
+        val distToPending = abs(playerPositionMs - pending)
+        if (distToPending > settleToleranceMs) return false
+
+        val seekDistance = abs(pending - seekOriginMs)
+        if (seekDistance <= 200L) {
+            return (now - seekStartedAtMs) >= 150L
+        }
+        val distToOrigin = abs(playerPositionMs - seekOriginMs)
+        return distToPending < distToOrigin || (now - seekStartedAtMs) >= 350L
+    }
+
+    companion object {
+        fun clampSeekTarget(positionMs: Long, durationMs: Long): Long {
+            return if (durationMs > 0L) {
+                positionMs.coerceIn(0L, durationMs)
+            } else {
+                positionMs.coerceAtLeast(0L)
+            }
+        }
+    }
+}
 
 enum class VideoResizeMode(val label: String, val media3Mode: Int) {
     FIT("Fit", AspectRatioFrameLayout.RESIZE_MODE_FIT),
@@ -93,8 +191,10 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<PlayerUiState> = _uiState.asStateFlow()
 
     private var activeExternalSubUri: Uri? = null
+    private var loadQueueJob: Job? = null
     private var tickerJob: Job? = null
     private var sleepTimerJob: Job? = null
+    private val seekTracker = SeekStateTracker()
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -102,15 +202,56 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             if (!isPlaying) persistCurrentProgress()
         }
 
+        override fun onTimelineChanged(timeline: Timeline, reason: Int) {
+            val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET }
+            if (dur != null && dur != _uiState.value.durationMs) {
+                _uiState.value = _uiState.value.copy(durationMs = dur)
+            }
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
+            val newPosMs = newPosition.positionMs.coerceAtLeast(0L)
+            when (reason) {
+                Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> {
+                    val dur = resolveDurationMs()
+                    val clamped = SeekStateTracker.clampSeekTarget(newPosMs, dur)
+                    seekTracker.updatePendingTarget(clamped)
+                    _uiState.value = _uiState.value.copy(positionMs = clamped)
+                }
+                Player.DISCONTINUITY_REASON_SEEK -> {
+                    if (seekTracker.pendingTargetMs == null) {
+                        val dur = resolveDurationMs()
+                        val clamped = SeekStateTracker.clampSeekTarget(newPosMs, dur)
+                        _uiState.value = _uiState.value.copy(positionMs = clamped)
+                    }
+                }
+                Player.DISCONTINUITY_REASON_AUTO_TRANSITION -> {
+                    seekTracker.clear()
+                }
+            }
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             val buffering = playbackState == Player.STATE_BUFFERING
-            val dur = player.duration.coerceAtLeast(0L)
+            val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
+            val resolvedDur = if (dur > 0L) dur else _uiState.value.durationMs
+            val resolvedPos = seekTracker.resolveTickerPosition(
+                playerPositionMs = player.currentPosition,
+                isReady = playbackState == Player.STATE_READY,
+                isPlaying = player.isPlaying
+            )
             _uiState.value = _uiState.value.copy(
                 isBuffering = buffering,
-                durationMs = if (dur > 0) dur else _uiState.value.durationMs
+                durationMs = resolvedDur,
+                positionMs = resolvedPos
             )
 
             if (playbackState == Player.STATE_ENDED) {
+                seekTracker.clear()
                 if (_uiState.value.sleepAfterCurrentVideo) {
                     _uiState.value = _uiState.value.copy(sleepAfterCurrentVideo = false)
                     player.pause()
@@ -161,7 +302,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun startPlayback(queue: List<VideoItem>, startIndex: Int) {
         if (queue.isEmpty()) return
         val safeIndex = startIndex.coerceIn(0, queue.lastIndex)
-        viewModelScope.launch {
+        loadQueueJob?.cancel()
+        loadQueueJob = viewModelScope.launch {
             val prefs = prefsRepo.preferencesFlow.first()
             playerHolder.setMonoMode(prefs.audioMonoMode)
 
@@ -227,6 +369,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val speed = history?.preferredSpeed?.takeIf { it in 0.25f..4.0f }
             ?: _uiState.value.playbackSpeed
 
+        if (resumePos > 0L) {
+            seekTracker.beginSeek(resumePos, 0L)
+        } else {
+            seekTracker.clear()
+        }
+
         _uiState.value = _uiState.value.copy(
             currentIndex = index,
             currentVideo = item,
@@ -248,8 +396,9 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun retryPlayback() {
-        val pos = player.currentPosition.coerceAtLeast(0L)
+        val pos = getEffectivePositionMs()
         _uiState.value = _uiState.value.copy(errorMessage = null)
+        seekTracker.beginSeek(pos, player.currentPosition.coerceAtLeast(0L))
         player.seekTo(pos)
         player.prepare()
         player.play()
@@ -260,28 +409,47 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             player.pause()
         } else {
             if (player.playbackState == Player.STATE_ENDED) {
-                player.seekTo(0L)
+                seekTo(0L)
             }
             player.play()
         }
     }
 
+    fun resolveDurationMs(fallbackMs: Long = _uiState.value.durationMs): Long {
+        return player.duration.takeIf { it > 0L && it != C.TIME_UNSET }
+            ?: fallbackMs.coerceAtLeast(0L)
+    }
+
+    fun getEffectivePositionMs(): Long {
+        return seekTracker.effectivePositionMs(
+            playerPositionMs = player.currentPosition,
+            isReady = player.playbackState == Player.STATE_READY
+        )
+    }
+
     fun seekTo(positionMs: Long) {
-        val dur = player.duration.takeIf { it > 0 } ?: _uiState.value.durationMs
-        val target = if (dur > 0) positionMs.coerceIn(0L, dur) else positionMs.coerceAtLeast(0L)
+        val dur = resolveDurationMs()
+        val target = SeekStateTracker.clampSeekTarget(positionMs, dur)
+        val origin = player.currentPosition.coerceAtLeast(0L)
+        seekTracker.beginSeek(targetMs = target, originMs = origin)
+        _uiState.value = _uiState.value.copy(
+            positionMs = target,
+            durationMs = if (dur > 0L) dur else _uiState.value.durationMs
+        )
         player.seekTo(target)
-        _uiState.value = _uiState.value.copy(positionMs = target)
     }
 
     fun seekBy(deltaMs: Long) {
-        seekTo(player.currentPosition + deltaMs)
+        val basePosition = getEffectivePositionMs()
+        seekTo(basePosition + deltaMs)
     }
 
     fun playNext() {
         if (!_uiState.value.hasNext) return
         persistCurrentProgress()
         val nextIdx = _uiState.value.currentIndex + 1
-        viewModelScope.launch { loadQueueItem(nextIdx) }
+        loadQueueJob?.cancel()
+        loadQueueJob = viewModelScope.launch { loadQueueItem(nextIdx) }
     }
 
     fun playPrevious() {
@@ -291,7 +459,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         }
         persistCurrentProgress()
         val prevIdx = _uiState.value.currentIndex - 1
-        viewModelScope.launch { loadQueueItem(prevIdx) }
+        loadQueueJob?.cancel()
+        loadQueueJob = viewModelScope.launch { loadQueueItem(prevIdx) }
     }
 
     fun setPlaybackSpeed(speed: Float) {
@@ -536,18 +705,23 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         tickerJob = viewModelScope.launch {
             while (true) {
                 delay(250L)
-                val pos = player.currentPosition.coerceAtLeast(0L)
-                val dur = player.duration.coerceAtLeast(0L)
-                if (pos != _uiState.value.positionMs || dur != _uiState.value.durationMs) {
+                val pos = seekTracker.resolveTickerPosition(
+                    playerPositionMs = player.currentPosition,
+                    isReady = player.playbackState == Player.STATE_READY,
+                    isPlaying = player.isPlaying
+                )
+                val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
+                val resolvedDur = if (dur > 0L) dur else _uiState.value.durationMs
+                if (pos != _uiState.value.positionMs || resolvedDur != _uiState.value.durationMs) {
                     _uiState.value = _uiState.value.copy(
                         positionMs = pos,
-                        durationMs = if (dur > 0) dur else _uiState.value.durationMs
+                        durationMs = resolvedDur
                     )
                 }
                 val a = _uiState.value.abPointAMs
                 val b = _uiState.value.abPointBMs
-                if (a != null && b != null && b > a && pos >= b) {
-                    player.seekTo(a)
+                if (a != null && b != null && b > a && pos >= b && seekTracker.pendingTargetMs == null) {
+                    seekTo(a)
                 }
             }
         }
@@ -555,8 +729,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun persistCurrentProgress() {
         val video = _uiState.value.currentVideo ?: return
-        val pos = player.currentPosition.coerceAtLeast(0L)
-        val dur = player.duration.takeIf { it > 0 } ?: video.durationMs
+        val pos = getEffectivePositionMs()
+        val dur = resolveDurationMs(video.durationMs)
         viewModelScope.launch {
             repository.savePlaybackProgress(
                 uri = video.uri,
