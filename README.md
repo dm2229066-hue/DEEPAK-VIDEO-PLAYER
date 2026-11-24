@@ -42,6 +42,15 @@ Do **not** commit keystores, keystore passwords, or production AdMob IDs to sour
    ```
    Or build a signed release APK with `./gradlew :app:assembleRelease`.
 
+4. **GitHub Actions CI Release Signing**:
+   - Release signing is already configured in `app/build.gradle.kts` (`release` signing config with `keyAlias = "upload"`).
+   - Encode your keystore to Base64 (`base64 -w 0 my-upload-key.jks` on Linux, or `base64 -i my-upload-key.jks` on macOS) and add these **Repository Secrets** in GitHub (**Settings → Secrets and variables → Actions**):
+     - `KEYSTORE_BASE64`: Base64 string of `my-upload-key.jks`
+     - `STORE_PASSWORD`: Keystore password
+     - `KEY_PASSWORD`: Key password for alias `upload`
+     - *(Optional for production ads)* `ADMOB_APP_ID`, `ADMOB_BANNER_ID`, `ADMOB_INTERSTITIAL_ID`, `ADMOB_REWARDED_ID`
+   - Once set, `.github/workflows/build-debug-apk.yml` automatically builds and uploads signed `app-release.apk` and `app-release.aab` artifacts.
+
 ---
 
 ## Implemented & Hardware-Dependent Features

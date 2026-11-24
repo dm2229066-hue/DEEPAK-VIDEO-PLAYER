@@ -2,6 +2,7 @@ package com.example.ui.screens
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,25 +24,24 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
-import androidx.compose.material.icons.automirrored.filled.Sort
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.GridView
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ViewList
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
+import androidx.compose.material.icons.automirrored.rounded.Sort
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -50,12 +50,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.R
@@ -66,7 +70,10 @@ import com.example.data.model.VideoItem
 import com.example.data.model.ViewMode
 import com.example.ui.components.DeepakLogoMark
 import com.example.ui.components.EmptyLibraryState
+import com.example.ui.components.GlassCardContainer
 import com.example.ui.components.PermissionAndSafCard
+import com.example.ui.components.SectionTitleBar
+import com.example.ui.components.StudioIconWell
 import com.example.ui.components.VideoGridCard
 import com.example.ui.components.VideoListRow
 import com.example.ui.components.VideoThumbnailBox
@@ -92,47 +99,59 @@ fun HomeScreen(
     modifier: Modifier = Modifier
 ) {
     var showSearch by remember { mutableStateOf(false) }
+    val primaryColor = MaterialTheme.colorScheme.primary
 
-    Column(modifier = modifier.fillMaxSize()) {
-        // Top Header
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .drawBehind {
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(primaryColor.copy(alpha = 0.14f), Color.Transparent),
+                        center = Offset(size.width * 0.85f, 0f),
+                        radius = size.width * 0.8f
+                    ),
+                    center = Offset(size.width * 0.85f, 0f),
+                    radius = size.width * 0.8f
+                )
+            }
+    ) {
+        // Redesigned Studio Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             DeepakLogoMark(modifier = Modifier.weight(1f))
 
-            IconButton(
-                onClick = { showSearch = !showSearch },
-                modifier = Modifier.testTag("home_search_toggle")
-            ) {
-                Icon(
-                    imageVector = if (showSearch) Icons.Default.Close else Icons.Default.Search,
-                    contentDescription = "Search videos"
+            Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                HeaderGlassButton(
+                    icon = if (showSearch) Icons.Rounded.Close else Icons.Rounded.Search,
+                    contentDescription = "Search videos",
+                    onClick = { showSearch = !showSearch },
+                    modifier = Modifier.testTag("home_search_toggle")
                 )
-            }
-            IconButton(
-                onClick = onOpenNetworkStream,
-                modifier = Modifier.testTag("home_network_stream_button")
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Link,
+                HeaderGlassButton(
+                    icon = Icons.Rounded.Link,
                     contentDescription = "Network stream URL",
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary,
+                    onClick = onOpenNetworkStream,
+                    modifier = Modifier.testTag("home_network_stream_button")
                 )
-            }
-            IconButton(onClick = onOpenSortSheet) {
-                Icon(imageVector = Icons.AutoMirrored.Filled.Sort, contentDescription = "Sort videos")
-            }
-            IconButton(onClick = onToggleViewMode) {
-                Icon(
-                    imageVector = if (uiState.preferences.viewMode == ViewMode.LIST) {
-                        Icons.Default.GridView
+                HeaderGlassButton(
+                    icon = Icons.AutoMirrored.Rounded.Sort,
+                    contentDescription = "Sort videos",
+                    onClick = onOpenSortSheet
+                )
+                HeaderGlassButton(
+                    icon = if (uiState.preferences.viewMode == ViewMode.LIST) {
+                        Icons.Rounded.GridView
                     } else {
-                        Icons.Default.ViewList
+                        Icons.Rounded.ViewList
                     },
-                    contentDescription = "Toggle grid or list view"
+                    contentDescription = "Toggle grid or list view",
+                    onClick = onToggleViewMode
                 )
             }
         }
@@ -143,11 +162,11 @@ fun HomeScreen(
                 onValueChange = onSearchQueryChange,
                 placeholder = { Text(stringResource(R.string.search_videos_hint)) },
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
                 trailingIcon = {
                     if (uiState.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { onSearchQueryChange("") }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear search")
+                            Icon(Icons.Rounded.Close, contentDescription = "Clear search")
                         }
                     }
                 },
@@ -162,13 +181,14 @@ fun HomeScreen(
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(18.dp)
+            verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // Cinema Hero Card
+            // Spotlight Hero Card
             item {
-                HeroDashboardCard(
+                CinemaSpotlightCard(
                     totalVideos = uiState.allVideos.size,
                     folderCount = uiState.folders.size,
+                    favCount = uiState.favoriteVideos.size,
                     resumeVideo = uiState.continueWatching.firstOrNull() ?: uiState.allVideos.firstOrNull(),
                     onQuickPlay = { video ->
                         val idx = uiState.allVideos.indexOfFirst { it.uri == video.uri }.coerceAtLeast(0)
@@ -177,6 +197,41 @@ fun HomeScreen(
                     onOpenStream = onOpenNetworkStream,
                     onRefresh = onRefresh
                 )
+            }
+
+            // 4 Quick Action Tiles
+            item {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    QuickActionTile(
+                        icon = Icons.Rounded.Link,
+                        label = "Stream URL",
+                        onClick = onOpenNetworkStream,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickActionTile(
+                        icon = Icons.Rounded.FolderOpen,
+                        label = "Pick File",
+                        onClick = onBrowseSaf,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickActionTile(
+                        icon = Icons.Rounded.Favorite,
+                        label = "Favorites",
+                        onClick = onSeeAllVideos,
+                        modifier = Modifier.weight(1f)
+                    )
+                    QuickActionTile(
+                        icon = Icons.Rounded.Folder,
+                        label = "Folders",
+                        onClick = {
+                            uiState.folders.firstOrNull()?.let(onOpenFolder) ?: onSeeAllVideos()
+                        },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
 
             if (!uiState.hasStoragePermission) {
@@ -192,13 +247,12 @@ fun HomeScreen(
             // Continue Watching
             if (uiState.continueWatching.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.continue_watching))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.continue_watching))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(uiState.continueWatching, key = { _, v -> "cw_${v.id}" }) { idx, video ->
-                            HorizontalVideoCard(
+                            ContinueWatchingBannerCard(
                                 video = video,
-                                subtitle = "Left off ${FormatUtils.formatDuration(video.lastPositionMs)}",
                                 onClick = { onPlayVideo(uiState.continueWatching, idx) }
                             )
                         }
@@ -209,8 +263,8 @@ fun HomeScreen(
             // Recently Played
             if (uiState.recentlyPlayed.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.recently_played))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.recently_played))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(uiState.recentlyPlayed, key = { _, v -> "rp_${v.id}" }) { idx, video ->
                             HorizontalVideoCard(
@@ -226,8 +280,8 @@ fun HomeScreen(
             // Recently Added
             if (uiState.recentlyAdded.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.recently_added))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.recently_added))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(uiState.recentlyAdded, key = { _, v -> "ra_${v.id}" }) { idx, video ->
                             HorizontalVideoCard(
@@ -243,8 +297,8 @@ fun HomeScreen(
             // Favorite Videos
             if (uiState.favoriteVideos.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.favorites))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.favorites))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         itemsIndexed(uiState.favoriteVideos, key = { _, v -> "fav_${v.id}" }) { idx, video ->
                             HorizontalVideoCard(
@@ -260,28 +314,27 @@ fun HomeScreen(
             // Folders quick strip
             if (uiState.folders.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.nav_folders))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.nav_folders))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(uiState.folders.take(10), key = { it.path }) { folder ->
-                            Surface(
+                            GlassCardContainer(
+                                cornerRadius = 16,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable { onOpenFolder(folder) },
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(14.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { onOpenFolder(folder) }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Folder,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                    StudioIconWell(
+                                        icon = Icons.Rounded.Folder,
+                                        sizeDp = 36,
+                                        iconSizeDp = 18,
+                                        cornerRadius = 11
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(
                                             text = folder.name,
@@ -304,28 +357,27 @@ fun HomeScreen(
             // Playlists quick strip
             if (uiState.playlists.isNotEmpty()) {
                 item {
-                    SectionHeader(title = stringResource(R.string.nav_playlists))
-                    Spacer(modifier = Modifier.height(10.dp))
+                    SectionTitleBar(title = stringResource(R.string.nav_playlists))
+                    Spacer(modifier = Modifier.height(12.dp))
                     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         items(uiState.playlists, key = { it.playlist.id }) { pl ->
-                            Surface(
+                            GlassCardContainer(
+                                cornerRadius = 16,
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(14.dp))
-                                    .clickable { onOpenPlaylist(pl.playlist.id) },
-                                color = MaterialTheme.colorScheme.surfaceContainer,
-                                shape = RoundedCornerShape(14.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .clickable { onOpenPlaylist(pl.playlist.id) }
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 11.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.AutoMirrored.Filled.QueueMusic,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(20.dp)
+                                    StudioIconWell(
+                                        icon = Icons.AutoMirrored.Rounded.QueueMusic,
+                                        sizeDp = 36,
+                                        iconSizeDp = 18,
+                                        cornerRadius = 11
                                     )
-                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Spacer(modifier = Modifier.width(10.dp))
                                     Column {
                                         Text(pl.playlist.name, style = MaterialTheme.typography.titleSmall)
                                         Text(
@@ -343,7 +395,7 @@ fun HomeScreen(
 
             // All Videos Preview
             item {
-                SectionHeader(
+                SectionTitleBar(
                     title = stringResource(R.string.all_videos),
                     actionLabel = if (uiState.allVideos.size > 6) "See All (${uiState.allVideos.size})" else null,
                     onAction = onSeeAllVideos
@@ -395,135 +447,252 @@ fun HomeScreen(
 }
 
 @Composable
-private fun HeroDashboardCard(
+private fun HeaderGlassButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    tint: Color = MaterialTheme.colorScheme.onSurface
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier.size(48.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .border(
+                    1.dp,
+                    Brush.verticalGradient(
+                        listOf(
+                            Color.White.copy(alpha = 0.14f),
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                        )
+                    ),
+                    RoundedCornerShape(12.dp)
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = contentDescription,
+                tint = tint,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun QuickActionTile(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    GlassCardContainer(
+        cornerRadius = 16,
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            StudioIconWell(
+                icon = icon,
+                contentDescription = label,
+                sizeDp = 38,
+                iconSizeDp = 19,
+                cornerRadius = 12
+            )
+            Spacer(modifier = Modifier.height(7.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+}
+
+@Composable
+private fun CinemaSpotlightCard(
     totalVideos: Int,
     folderCount: Int,
+    favCount: Int,
     resumeVideo: VideoItem?,
     onQuickPlay: (VideoItem) -> Unit,
     onOpenStream: () -> Unit,
     onRefresh: () -> Unit
 ) {
-    Card(
+    val shape = RoundedCornerShape(24.dp)
+    Box(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp)),
-        shape = RoundedCornerShape(22.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()) {
-            Image(
-                painter = painterResource(id = R.drawable.img_brand_hero),
-                contentDescription = null,
-                modifier = Modifier
-                    .matchParentSize(),
-                contentScale = ContentScale.Crop
+            .clip(shape)
+            .border(
+                1.dp,
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                        Color.White.copy(alpha = 0.12f)
+                    )
+                ),
+                shape
             )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.horizontalGradient(
-                            listOf(
-                                Color.Black.copy(alpha = 0.88f),
-                                Color.Black.copy(alpha = 0.55f)
-                            )
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.img_brand_hero),
+            contentDescription = null,
+            modifier = Modifier.matchParentSize(),
+            contentScale = ContentScale.Crop
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            Color(0xF008080B),
+                            Color(0xBB101016),
+                            Color(0x66161408)
                         )
                     )
-            )
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(18.dp)
+                )
+        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.Top
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "YOUR CINEMA VAULT",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.primary
+                Column(modifier = Modifier.weight(1f)) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                        shape = CircleShape,
+                        modifier = Modifier.border(
+                            1.dp,
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.45f),
+                            CircleShape
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
+                    ) {
                         Text(
-                            text = "$totalVideos Videos • $folderCount Folders",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = Color.White
+                            text = "MEDIA3 STUDIO ENGINE",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
                         )
                     }
-                    IconButton(
-                        onClick = onRefresh,
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = if (resumeVideo != null) resumeVideo.title else "Your Cinema Vault",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "$totalVideos Videos  •  $folderCount Folders  •  $favCount Favorites",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.White.copy(alpha = 0.78f)
+                    )
+                }
+                IconButton(
+                    onClick = onRefresh,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                ) {
+                    Box(
                         modifier = Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .clip(CircleShape)
                             .background(Color.White.copy(alpha = 0.12f))
+                            .border(0.75.dp, Color.White.copy(alpha = 0.22f), CircleShape),
+                        contentAlignment = Alignment.Center
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
+                            imageVector = Icons.Rounded.Refresh,
                             contentDescription = "Refresh library",
-                            tint = Color.White
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
+            }
 
-                Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    if (resumeVideo != null) {
-                        Surface(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(12.dp))
-                                .clickable { onQuickPlay(resumeVideo) }
-                                .testTag("hero_quick_play"),
-                            color = MaterialTheme.colorScheme.primary,
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = if (resumeVideo.lastPositionMs > 2000L) "Resume Last" else "Play Latest",
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onPrimary
-                                )
-                            }
-                        }
-                    }
-
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (resumeVideo != null) {
                     Surface(
                         modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .clickable(onClick = onOpenStream)
-                            .testTag("hero_stream_url"),
-                        color = Color.White.copy(alpha = 0.14f),
-                        shape = RoundedCornerShape(12.dp)
+                            .clip(RoundedCornerShape(14.dp))
+                            .clickable { onQuickPlay(resumeVideo) }
+                            .testTag("hero_quick_play"),
+                        color = MaterialTheme.colorScheme.primary,
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Link,
+                                imageVector = Icons.Rounded.PlayArrow,
                                 contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(18.dp)
+                                tint = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.size(19.dp)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "Stream URL",
+                                text = if (resumeVideo.lastPositionMs > 2000L) "Resume Playback" else "Play Now",
                                 style = MaterialTheme.typography.labelLarge,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.onPrimary
                             )
                         }
+                    }
+                }
+
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .border(1.dp, Color.White.copy(alpha = 0.24f), RoundedCornerShape(14.dp))
+                        .clickable(onClick = onOpenStream)
+                        .testTag("hero_stream_url"),
+                    color = Color.White.copy(alpha = 0.10f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Link,
+                            contentDescription = null,
+                            tint = Color.White,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Stream URL",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = Color.White
+                        )
                     }
                 }
             }
@@ -532,24 +701,40 @@ private fun HeroDashboardCard(
 }
 
 @Composable
-private fun SectionHeader(
-    title: String,
-    actionLabel: String? = null,
-    onAction: (() -> Unit)? = null
+private fun ContinueWatchingBannerCard(
+    video: VideoItem,
+    onClick: () -> Unit
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
+    GlassCardContainer(
+        cornerRadius = 18,
+        accentBorder = true,
+        modifier = Modifier
+            .width(216.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
     ) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f)
-        )
-        if (actionLabel != null && onAction != null) {
-            TextButton(onClick = onAction) {
-                Text(actionLabel, color = MaterialTheme.colorScheme.primary)
+        Column {
+            VideoThumbnailBox(
+                video = video,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9.5f),
+                showPlayBadge = true
+            )
+            Column(modifier = Modifier.padding(11.dp)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "Left off ${FormatUtils.formatDuration(video.lastPositionMs)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
     }
@@ -561,32 +746,37 @@ private fun HorizontalVideoCard(
     subtitle: String,
     onClick: () -> Unit
 ) {
-    Column(
+    GlassCardContainer(
+        cornerRadius = 16,
         modifier = Modifier
-            .width(176.dp)
-            .clip(RoundedCornerShape(14.dp))
+            .width(172.dp)
+            .clip(RoundedCornerShape(16.dp))
             .clickable(onClick = onClick)
     ) {
-        VideoThumbnailBox(
-            video = video,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16f / 10f)
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = video.title,
-            style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
+        Column {
+            VideoThumbnailBox(
+                video = video,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 10f)
+            )
+            Column(modifier = Modifier.padding(10.dp)) {
+                Text(
+                    text = video.title,
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }

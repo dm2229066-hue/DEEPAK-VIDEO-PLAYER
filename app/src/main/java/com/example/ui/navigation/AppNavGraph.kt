@@ -7,36 +7,51 @@ import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.automirrored.outlined.QueueMusic
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.PlayCircle
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.NavigationRail
 import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -45,12 +60,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -102,11 +124,11 @@ private data class TopTab(
 )
 
 private val topTabs = listOf(
-    TopTab(HomeRoute, R.string.nav_home, Icons.Filled.Home, Icons.Outlined.Home, "nav_home"),
-    TopTab(VideosRoute, R.string.nav_videos, Icons.Filled.PlayCircle, Icons.Outlined.PlayCircle, "nav_videos"),
-    TopTab(FoldersRoute, R.string.nav_folders, Icons.Filled.Folder, Icons.Outlined.Folder, "nav_folders"),
-    TopTab(PlaylistsRoute, R.string.nav_playlists, Icons.AutoMirrored.Filled.QueueMusic, Icons.AutoMirrored.Outlined.QueueMusic, "nav_playlists"),
-    TopTab(SettingsRoute, R.string.nav_settings, Icons.Filled.Settings, Icons.Outlined.Settings, "nav_settings")
+    TopTab(HomeRoute, R.string.nav_home, Icons.Rounded.Home, Icons.Outlined.Home, "nav_home"),
+    TopTab(VideosRoute, R.string.nav_videos, Icons.Rounded.PlayCircle, Icons.Outlined.PlayCircle, "nav_videos"),
+    TopTab(FoldersRoute, R.string.nav_folders, Icons.Rounded.Folder, Icons.Outlined.Folder, "nav_folders"),
+    TopTab(PlaylistsRoute, R.string.nav_playlists, Icons.AutoMirrored.Rounded.QueueMusic, Icons.AutoMirrored.Outlined.QueueMusic, "nav_playlists"),
+    TopTab(SettingsRoute, R.string.nav_settings, Icons.Rounded.Settings, Icons.Outlined.Settings, "nav_settings")
 )
 
 @Composable
@@ -327,31 +349,11 @@ fun DeepakAppRoot(
                 contentWindowInsets = if (isPlayerRoute) WindowInsets(0, 0, 0, 0) else WindowInsets.safeDrawing,
                 bottomBar = {
                     if (showTopLevelNav && !useNavigationRail) {
-                        NavigationBar(
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            windowInsets = WindowInsets.navigationBars
-                        ) {
-                            topTabs.forEach { tab ->
-                                val selected = currentDest?.hasRoute(tab.route::class) == true
-                                NavigationBarItem(
-                                    selected = selected,
-                                    onClick = { navigateTopTab(tab.route) },
-                                    icon = {
-                                        Icon(
-                                            imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
-                                            contentDescription = stringResource(tab.labelRes)
-                                        )
-                                    },
-                                    label = { Text(stringResource(tab.labelRes), maxLines = 1) },
-                                    colors = NavigationBarItemDefaults.colors(
-                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
-                                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                                        indicatorColor = MaterialTheme.colorScheme.primary
-                                    ),
-                                    modifier = Modifier.testTag(tab.testTag)
-                                )
-                            }
-                        }
+                        FloatingGlassNavBar(
+                            tabs = topTabs,
+                            isSelected = { tab -> currentDest?.hasRoute(tab.route::class) == true },
+                            onSelectTab = { tab -> navigateTopTab(tab.route) }
+                        )
                     }
                 }
             ) { innerPadding ->
@@ -374,6 +376,11 @@ fun DeepakAppRoot(
                                         )
                                     },
                                     label = { Text(stringResource(tab.labelRes), maxLines = 1) },
+                                    colors = NavigationRailItemDefaults.colors(
+                                        selectedIconColor = MaterialTheme.colorScheme.onPrimary,
+                                        selectedTextColor = MaterialTheme.colorScheme.primary,
+                                        indicatorColor = MaterialTheme.colorScheme.primary
+                                    ),
                                     modifier = Modifier.testTag(tab.testTag)
                                 )
                             }
@@ -619,3 +626,107 @@ fun DeepakAppRoot(
         )
     }
 }
+
+@Composable
+private fun FloatingGlassNavBar(
+    tabs: List<TopTab>,
+    isSelected: (TopTab) -> Boolean,
+    onSelectTab: (TopTab) -> Unit
+) {
+    val dockShape = RoundedCornerShape(28.dp)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .border(
+                    width = 1.dp,
+                    brush = Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.28f),
+                            MaterialTheme.colorScheme.outline.copy(alpha = 0.40f)
+                        )
+                    ),
+                    shape = dockShape
+                ),
+            shape = dockShape,
+            color = MaterialTheme.colorScheme.surfaceContainer.copy(alpha = 0.96f),
+            tonalElevation = 8.dp,
+            shadowElevation = 12.dp
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 6.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                tabs.forEach { tab ->
+                    val selected = isSelected(tab)
+                    val label = stringResource(tab.labelRes)
+                    val pillColor by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            Color.Transparent
+                        },
+                        label = "navPillColor"
+                    )
+                    val contentTint by animateColorAsState(
+                        targetValue = if (selected) {
+                            MaterialTheme.colorScheme.onPrimary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                        label = "navTintColor"
+                    )
+                    val interactionSource = remember { MutableInteractionSource() }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minWidth = 48.dp, minHeight = 52.dp)
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(pillColor)
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = ripple(bounded = true),
+                                onClick = { onSelectTab(tab) }
+                            )
+                            .padding(horizontal = 4.dp, vertical = 6.dp)
+                            .testTag(tab.testTag),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = if (selected) tab.selectedIcon else tab.unselectedIcon,
+                                contentDescription = label,
+                                tint = contentTint,
+                                modifier = Modifier.size(21.dp)
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontSize = 10.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = contentTint,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+

@@ -9,11 +9,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 
 private val DeepakShapes = Shapes(
-    extraSmall = RoundedCornerShape(8.dp),
-    small = RoundedCornerShape(12.dp),
-    medium = RoundedCornerShape(16.dp),
-    large = RoundedCornerShape(22.dp),
-    extraLarge = RoundedCornerShape(28.dp)
+    extraSmall = RoundedCornerShape(10.dp),
+    small = RoundedCornerShape(14.dp),
+    medium = RoundedCornerShape(18.dp),
+    large = RoundedCornerShape(24.dp),
+    extraLarge = RoundedCornerShape(30.dp)
 )
 
 @Composable
@@ -29,7 +29,7 @@ fun DeepakVideoPlayerTheme(
         darkColorScheme(
             primary = accent,
             onPrimary = onAccent,
-            primaryContainer = accent.copy(alpha = 0.16f),
+            primaryContainer = accent.copy(alpha = 0.15f),
             onPrimaryContainer = accent,
             secondary = AmberFlare,
             onSecondary = ObsidianBlack,

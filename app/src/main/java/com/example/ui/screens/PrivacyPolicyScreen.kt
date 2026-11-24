@@ -1,28 +1,35 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.example.R
+import com.example.ads.AdManager
+import com.example.ui.components.GlassCardContainer
 
 @Composable
 fun PrivacyPolicyScreen(
@@ -33,12 +40,21 @@ fun PrivacyPolicyScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
             }
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = stringResource(R.string.privacy_policy_title),
                 style = MaterialTheme.typography.titleLarge
@@ -62,15 +78,17 @@ fun PrivacyPolicyScreen(
                     body = "Media permissions (READ_MEDIA_VIDEO / READ_EXTERNAL_STORAGE) are requested only when you choose to scan device storage. You may also browse individual files or mount external folders using Android's zero-permission Storage Access Framework (SAF). File rename and delete operations require explicit system or user confirmation."
                 )
             }
-            item {
-                PolicySection(
-                    title = "3. Google AdMob & Consent",
-                    body = "This free application uses Google AdMob to display Banner, frequency-capped Interstitial, and optional Rewarded advertisements. Where required by regional regulations (such as EEA/UK/US privacy laws), Google's User Messaging Platform (UMP) presents a consent form before ads are requested. You can update your consent preferences anytime from Settings."
-                )
+            if (AdManager.areRealAdsConfigured()) {
+                item {
+                    PolicySection(
+                        title = "3. Google AdMob & Consent",
+                        body = "This application uses Google AdMob to display Banner, frequency-capped Interstitial, and optional Rewarded advertisements. Where required by regional regulations, Google's User Messaging Platform (UMP) presents a consent form before ads are requested. You can update your consent preferences anytime from Settings."
+                    )
+                }
             }
             item {
                 PolicySection(
-                    title = "4. Network Streams",
+                    title = if (AdManager.areRealAdsConfigured()) "4. Network Streams" else "3. Network Streams",
                     body = "When you enter an HTTP, HTTPS, HLS, DASH, or RTSP stream URL, ExoPlayer connects directly to the host you specified to stream media. Only your recently entered stream URLs are saved locally in your device database for convenience."
                 )
             }
@@ -80,9 +98,8 @@ fun PrivacyPolicyScreen(
 
 @Composable
 private fun PolicySection(title: String, body: String) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
+    GlassCardContainer(
+        cornerRadius = 18,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {

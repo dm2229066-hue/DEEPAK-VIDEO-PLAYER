@@ -19,28 +19,26 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.DarkMode
-import androidx.compose.material.icons.filled.DeleteSweep
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayCircle
-import androidx.compose.material.icons.filled.PrivacyTip
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.TouchApp
-import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.DeleteSweep
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.Language
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.PlayCircle
+import androidx.compose.material.icons.rounded.PrivacyTip
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Visibility
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +61,8 @@ import com.example.ads.AdBannerBar
 import com.example.data.preferences.AppLanguage
 import com.example.data.preferences.OrientationPreference
 import com.example.data.preferences.UserPreferences
+import com.example.ui.components.GlassCardContainer
+import com.example.ui.components.StudioIconWell
 import com.example.ui.theme.AccentColorOption
 
 @Composable
@@ -90,48 +90,67 @@ fun SettingsScreen(
     var showAboutDialog by remember { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()) {
-        Text(
-            text = stringResource(R.string.nav_settings),
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)
-        )
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+            Text(
+                text = stringResource(R.string.nav_settings),
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                text = "Personalize playback, studio theme & privacy",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            // Appearance & Theme
             item {
                 SettingsSectionCard(title = "Appearance & Theme") {
                     SettingsSwitchRow(
-                        icon = Icons.Default.DarkMode,
+                        icon = Icons.Rounded.DarkMode,
                         title = "Dark Cinema Theme",
-                        subtitle = if (prefs.isDarkTheme) "Obsidian black & charcoal" else "Clean light mode",
+                        subtitle = if (prefs.isDarkTheme) "Obsidian glass & charcoal" else "Crisp alabaster light mode",
                         checked = prefs.isDarkTheme,
                         onCheckedChange = onSetDarkTheme,
                         tag = "settings_dark_theme_switch"
                     )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    Text(
+                        text = if (canRequestAds) {
+                            "Accent Color (Watch Rewarded Ad for Pro Accents)"
+                        } else {
+                            "Accent Color"
+                        },
+                        style = MaterialTheme.typography.labelLarge
+                    )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Text("Accent Color (Watch Rewarded Ad for Pro Accents)", style = MaterialTheme.typography.labelLarge)
-                    Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         AccentColorOption.entries.forEach { option ->
-                            val unlocked = !option.requiresRewardUnlock || option.id in prefs.unlockedAccents
+                            val unlocked = !canRequestAds || !option.requiresRewardUnlock || option.id in prefs.unlockedAccents
                             val selected = prefs.accentOption == option
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 modifier = Modifier
                                     .weight(1f)
-                                    .clip(RoundedCornerShape(12.dp))
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(
+                                        if (selected) MaterialTheme.colorScheme.surfaceContainerHigh
+                                        else Color.Transparent
+                                    )
                                     .clickable {
                                         if (unlocked) onSelectAccent(option)
                                         else onUnlockAccentWithRewardedAd(option)
                                     }
-                                    .padding(vertical = 6.dp)
+                                    .padding(vertical = 8.dp)
                                     .testTag("accent_${option.id}")
                             ) {
                                 Box(
@@ -147,16 +166,16 @@ fun SettingsScreen(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     if (selected) {
-                                        Icon(Icons.Default.Check, contentDescription = "Selected", tint = option.onAccent, modifier = Modifier.size(18.dp))
+                                        Icon(Icons.Rounded.Check, contentDescription = "Selected", tint = option.onAccent, modifier = Modifier.size(18.dp))
                                     } else if (!unlocked) {
-                                        Icon(Icons.Default.Lock, contentDescription = "Watch ad to unlock", tint = option.onAccent, modifier = Modifier.size(16.dp))
+                                        Icon(Icons.Rounded.Lock, contentDescription = "Watch ad to unlock", tint = option.onAccent, modifier = Modifier.size(16.dp))
                                     }
                                 }
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.height(5.dp))
                                 Text(
                                     text = if (unlocked) option.label.substringBefore(' ') else "Ad",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
                         }
@@ -164,11 +183,10 @@ fun SettingsScreen(
                 }
             }
 
-            // Playback Preferences
             item {
                 SettingsSectionCard(title = "Playback & Gestures") {
                     SettingsSwitchRow(
-                        icon = Icons.Default.TouchApp,
+                        icon = Icons.Rounded.TouchApp,
                         title = "Player Swipe & Tap Gestures",
                         subtitle = "Brightness, volume, seek, double-tap & pinch zoom",
                         checked = prefs.gesturesEnabled,
@@ -176,22 +194,25 @@ fun SettingsScreen(
                         tag = "settings_gestures_switch"
                     )
                     SettingsSwitchRow(
-                        icon = Icons.Default.PlayCircle,
+                        icon = Icons.Rounded.PlayCircle,
                         title = "Auto-Play Next Video",
                         subtitle = "Continue sequentially through folder or playlist",
                         checked = prefs.autoPlayNext,
                         onCheckedChange = onSetAutoPlayNext
                     )
                     SettingsSwitchRow(
-                        icon = Icons.Default.PlayCircle,
+                        icon = Icons.Rounded.PlayCircle,
                         title = "Background Playback",
                         subtitle = "Keep audio playing with notification when minimized",
                         checked = prefs.backgroundPlayback,
                         onCheckedChange = onSetBackgroundPlayback
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        StudioIconWell(icon = Icons.Rounded.Speed, sizeDp = 32, iconSizeDp = 17, cornerRadius = 9)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text("Default Speed: ${prefs.defaultPlaybackSpeed}x", style = MaterialTheme.typography.titleSmall)
                     }
@@ -218,11 +239,10 @@ fun SettingsScreen(
                 }
             }
 
-            // Subtitle & Audio Defaults
             item {
                 SettingsSectionCard(title = "Subtitles & Audio") {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Subtitles, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        StudioIconWell(icon = Icons.Rounded.Subtitles, sizeDp = 32, iconSizeDp = 17, cornerRadius = 9)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text("Subtitle Size: ${prefs.subtitleFontSizeSp.toInt()}sp", style = MaterialTheme.typography.titleSmall)
                     }
@@ -241,11 +261,10 @@ fun SettingsScreen(
                 }
             }
 
-            // Library, Language & History
             item {
                 SettingsSectionCard(title = "Library, Language & History") {
                     SettingsSwitchRow(
-                        icon = Icons.Default.Visibility,
+                        icon = Icons.Rounded.Visibility,
                         title = "Show Hidden Folders",
                         subtitle = "Display folders marked hidden in File Manager",
                         checked = prefs.showHiddenFolders,
@@ -253,7 +272,7 @@ fun SettingsScreen(
                     )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Language, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        StudioIconWell(icon = Icons.Rounded.Language, sizeDp = 32, iconSizeDp = 17, cornerRadius = 9)
                         Spacer(modifier = Modifier.width(10.dp))
                         Text("App Language", style = MaterialTheme.typography.titleSmall)
                     }
@@ -266,9 +285,12 @@ fun SettingsScreen(
                             )
                         }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
+                    HorizontalDivider(
+                        modifier = Modifier.padding(vertical = 8.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
                     SettingsActionRow(
-                        icon = Icons.Default.DeleteSweep,
+                        icon = Icons.Rounded.DeleteSweep,
                         title = stringResource(R.string.clear_history),
                         subtitle = "Clear resume positions and recently played list",
                         onClick = { showClearHistoryDialog = true },
@@ -277,26 +299,29 @@ fun SettingsScreen(
                 }
             }
 
-            // Privacy, Consent & About
             item {
                 SettingsSectionCard(title = "Privacy & About") {
                     SettingsActionRow(
-                        icon = Icons.Default.PrivacyTip,
+                        icon = Icons.Rounded.PrivacyTip,
                         title = stringResource(R.string.privacy_policy_title),
-                        subtitle = "Local video privacy & AdMob data disclosure",
+                        subtitle = if (canRequestAds) {
+                            "Local video privacy & AdMob data disclosure"
+                        } else {
+                            "Local video privacy & permissions disclosure"
+                        },
                         onClick = onOpenPrivacyPolicy,
                         tag = "settings_privacy_policy"
                     )
                     if (isPrivacyOptionsRequired) {
                         SettingsActionRow(
-                            icon = Icons.Default.PrivacyTip,
+                            icon = Icons.Rounded.PrivacyTip,
                             title = "Ad Privacy & Consent Options",
                             subtitle = "Manage personalized ad consent preferences",
                             onClick = onOpenAdConsentOptions
                         )
                     }
                     SettingsActionRow(
-                        icon = Icons.Default.Info,
+                        icon = Icons.Rounded.Info,
                         title = stringResource(R.string.about_app_title),
                         subtitle = "Version ${BuildConfig.VERSION_NAME} • Formats & Capabilities",
                         onClick = { showAboutDialog = true },
@@ -356,18 +381,27 @@ private fun SettingsSectionCard(
     title: String,
     content: @Composable () -> Unit
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(18.dp),
+    GlassCardContainer(
+        cornerRadius = 20,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary
-            )
-            Spacer(modifier = Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(14.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
             content()
         }
     }
@@ -388,7 +422,12 @@ private fun SettingsSwitchRow(
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        StudioIconWell(
+            icon = icon,
+            sizeDp = 38,
+            iconSizeDp = 19,
+            cornerRadius = 11
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)
@@ -419,7 +458,12 @@ private fun SettingsActionRow(
             .then(if (tag.isNotEmpty()) Modifier.testTag(tag) else Modifier),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        StudioIconWell(
+            icon = icon,
+            sizeDp = 38,
+            iconSizeDp = 19,
+            cornerRadius = 11
+        )
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleSmall)

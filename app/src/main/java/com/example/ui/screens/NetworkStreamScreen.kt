@@ -1,7 +1,10 @@
 package com.example.ui.screens
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -16,19 +19,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Wifi
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Wifi
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -46,6 +47,9 @@ import com.example.R
 import com.example.ads.AdBannerBar
 import com.example.data.local.NetworkStreamHistoryEntity
 import com.example.data.model.VideoItem
+import com.example.ui.components.GlassCardContainer
+import com.example.ui.components.SectionTitleBar
+import com.example.ui.components.StudioIconWell
 
 @Composable
 fun NetworkStreamScreen(
@@ -103,51 +107,69 @@ fun NetworkStreamScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 8.dp),
+                .padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer)
+                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f), RoundedCornerShape(14.dp))
+                    .clickable(onClick = onBack),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
             }
-            Text(
-                text = stringResource(R.string.network_stream),
-                style = MaterialTheme.typography.titleLarge
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(
+                    text = stringResource(R.string.network_stream),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                Text(
+                    text = "Direct HLS, DASH & RTSP Player",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(20.dp)
+                GlassCardContainer(
+                    cornerRadius = 22,
+                    accentBorder = true
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(18.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Wifi,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
+                            StudioIconWell(
+                                icon = Icons.Rounded.Wifi,
+                                sizeDp = 38,
+                                iconSizeDp = 19,
+                                cornerRadius = 11
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(10.dp))
                             Text(
                                 text = "HTTP • HTTPS • HLS (.m3u8) • DASH (.mpd) • RTSP",
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         OutlinedTextField(
                             value = urlInput,
                             onValueChange = { urlInput = it; validationError = null },
                             label = { Text("Video / Stream URL") },
                             placeholder = { Text("https://example.com/stream.m3u8") },
-                            leadingIcon = { Icon(Icons.Default.Link, contentDescription = null) },
+                            leadingIcon = { Icon(Icons.Rounded.Link, contentDescription = null) },
                             singleLine = true,
                             isError = validationError != null,
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("network_url_input")
@@ -166,17 +188,23 @@ fun NetworkStreamScreen(
                             onValueChange = { titleInput = it },
                             label = { Text("Stream Name (optional)") },
                             singleLine = true,
+                            shape = RoundedCornerShape(14.dp),
                             modifier = Modifier.fillMaxWidth()
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
                         Button(
                             onClick = { launchStream(urlInput, titleInput) },
+                            shape = RoundedCornerShape(14.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.primary,
+                                contentColor = MaterialTheme.colorScheme.onPrimary
+                            ),
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(48.dp)
                                 .testTag("play_network_stream_button")
                         ) {
-                            Icon(Icons.Default.PlayArrow, contentDescription = null)
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Play Stream")
                         }
@@ -186,29 +214,26 @@ fun NetworkStreamScreen(
 
             if (recentStreams.isNotEmpty()) {
                 item {
-                    Text(
-                        text = "Recent Stream URLs",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
+                    SectionTitleBar(title = "Recent Stream URLs")
                 }
                 items(recentStreams, key = { it.url }) { stream ->
-                    Surface(
+                    GlassCardContainer(
+                        cornerRadius = 16,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .clickable { launchStream(stream.url, stream.title) },
-                        color = MaterialTheme.colorScheme.surface,
-                        tonalElevation = 2.dp
+                            .clip(RoundedCornerShape(16.dp))
+                            .clickable { launchStream(stream.url, stream.title) }
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Default.PlayArrow,
+                            StudioIconWell(
+                                icon = Icons.Rounded.PlayArrow,
                                 contentDescription = "Play stream",
-                                tint = MaterialTheme.colorScheme.primary
+                                sizeDp = 40,
+                                iconSizeDp = 21,
+                                cornerRadius = 12
                             )
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
@@ -223,7 +248,7 @@ fun NetworkStreamScreen(
                             }
                             IconButton(onClick = { onDeleteStream(stream.url) }) {
                                 Icon(
-                                    Icons.Default.Delete,
+                                    Icons.Rounded.Delete,
                                     contentDescription = "Remove stream URL",
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.size(20.dp)

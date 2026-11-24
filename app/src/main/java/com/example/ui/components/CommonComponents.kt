@@ -27,26 +27,24 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.PlaylistAdd
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.DriveFileRenameOutline
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.FolderOpen
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material.icons.filled.VideoLibrary
+import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowUpward
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Delete
+import androidx.compose.material.icons.rounded.DriveFileRenameOutline
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.FolderOpen
+import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.VideoLibrary
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -81,6 +79,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import coil.request.videoFrameMillis
@@ -93,30 +92,179 @@ import com.example.data.model.VideoMetadataInfo
 import kotlinx.coroutines.delay
 
 @Composable
+fun GlassCardContainer(
+    modifier: Modifier = Modifier,
+    cornerRadius: Int = 18,
+    accentBorder: Boolean = false,
+    content: @Composable () -> Unit
+) {
+    val shape = RoundedCornerShape(cornerRadius.dp)
+    val borderBrush = if (accentBorder) {
+        Brush.linearGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+            )
+        )
+    } else {
+        Brush.verticalGradient(
+            listOf(
+                Color.White.copy(alpha = 0.11f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+            )
+        )
+    }
+    Surface(
+        modifier = modifier.border(1.dp, borderBrush, shape),
+        color = MaterialTheme.colorScheme.surface,
+        shape = shape,
+        tonalElevation = 2.dp,
+        content = content
+    )
+}
+
+@Composable
+fun SectionTitleBar(
+    title: String,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .width(4.dp)
+                .height(18.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Spacer(modifier = Modifier.width(10.dp))
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.weight(1f)
+        )
+        if (actionLabel != null && onAction != null) {
+            TextButton(onClick = onAction) {
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun StudioIconWell(
+    icon: ImageVector,
+    contentDescription: String? = null,
+    modifier: Modifier = Modifier,
+    sizeDp: Int = 44,
+    iconSizeDp: Int = 22,
+    cornerRadius: Int = 14,
+    highlighted: Boolean = true,
+    tint: Color = if (highlighted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+) {
+    val shape = RoundedCornerShape(cornerRadius.dp)
+    val bgBrush = if (highlighted) {
+        Brush.linearGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.22f),
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                MaterialTheme.colorScheme.surfaceContainerHigh,
+                MaterialTheme.colorScheme.surfaceContainer
+            )
+        )
+    }
+    val borderBrush = if (highlighted) {
+        Brush.linearGradient(
+            listOf(
+                MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.30f)
+            )
+        )
+    } else {
+        Brush.linearGradient(
+            listOf(
+                Color.White.copy(alpha = 0.12f),
+                MaterialTheme.colorScheme.outline.copy(alpha = 0.25f)
+            )
+        )
+    }
+    Box(
+        modifier = modifier
+            .size(sizeDp.dp)
+            .clip(shape)
+            .background(bgBrush)
+            .border(1.dp, borderBrush, shape),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSizeDp.dp)
+        )
+    }
+}
+
+@Composable
 fun DeepakLogoMark(modifier: Modifier = Modifier) {
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.img_deepak_icon_fg),
-            contentDescription = "Deepak Video Player Logo",
+        Box(
             modifier = Modifier
-                .size(34.dp)
-                .clip(RoundedCornerShape(10.dp))
-                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), RoundedCornerShape(10.dp)),
-            contentScale = ContentScale.Crop
-        )
-        Spacer(modifier = Modifier.width(10.dp))
+                .size(42.dp)
+                .clip(CircleShape)
+                .background(Color(0xFF0D0C12))
+                .border(
+                    1.25.dp,
+                    Brush.linearGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.85f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
+                        )
+                    ),
+                    CircleShape
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Image(
+                painter = painterResource(id = R.drawable.img_deepak_icon_fg),
+                contentDescription = "Deepak Video Player Logo",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .scale(1.18f)
+                    .clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+        }
+        Spacer(modifier = Modifier.width(11.dp))
         Column {
             Text(
                 text = "DEEPAK",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    letterSpacing = 1.2.sp
+                ),
                 color = MaterialTheme.colorScheme.onBackground
             )
             Text(
-                text = "VIDEO PLAYER",
-                style = MaterialTheme.typography.labelSmall,
+                text = "CINEMA PLAYER",
+                style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 1.6.sp),
                 color = MaterialTheme.colorScheme.primary
             )
         }
@@ -130,22 +278,22 @@ fun SplashScreenOverlay(onFinished: () -> Unit) {
     val alpha = remember { Animatable(0f) }
 
     LaunchedEffect(Unit) {
-        alpha.animateTo(1f, animationSpec = tween(350))
+        alpha.animateTo(1f, animationSpec = tween(320))
         scale.animateTo(1f, animationSpec = tween(420, easing = FastOutSlowInEasing))
-        delay(550)
+        delay(520)
         visible = false
-        delay(280)
+        delay(250)
         onFinished()
     }
 
     AnimatedVisibility(
         visible = visible,
-        exit = fadeOut(animationSpec = tween(260))
+        exit = fadeOut(animationSpec = tween(240))
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF09090B)),
+                .background(Color(0xFF060608)),
             contentAlignment = Alignment.Center
         ) {
             Image(
@@ -153,8 +301,20 @@ fun SplashScreenOverlay(onFinished: () -> Unit) {
                 contentDescription = null,
                 modifier = Modifier
                     .fillMaxSize()
-                    .alpha(0.32f),
+                    .alpha(0.36f),
                 contentScale = ContentScale.Crop
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                                Color.Transparent
+                            )
+                        )
+                    )
             )
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -163,27 +323,56 @@ fun SplashScreenOverlay(onFinished: () -> Unit) {
                     .alpha(alpha.value)
                     .padding(32.dp)
             ) {
-                Image(
-                    painter = painterResource(id = R.drawable.img_deepak_icon_fg),
-                    contentDescription = "Deepak Video Player",
+                Box(
                     modifier = Modifier
-                        .size(104.dp)
-                        .clip(RoundedCornerShape(26.dp))
-                        .border(2.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.65f), RoundedCornerShape(26.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(modifier = Modifier.height(20.dp))
+                        .size(116.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.16f))
+                        .border(
+                            1.5.dp,
+                            Brush.linearGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary,
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.30f)
+                                )
+                            ),
+                            CircleShape
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Image(
+                        painter = painterResource(id = R.drawable.img_deepak_icon_fg),
+                        contentDescription = "Deepak Video Player",
+                        modifier = Modifier
+                            .size(108.dp)
+                            .scale(1.12f)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Spacer(modifier = Modifier.height(22.dp))
                 Text(
                     text = "Deepak Video Player",
                     style = MaterialTheme.typography.headlineMedium,
                     color = Color.White
                 )
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = "CINEMA ENGINE • MEDIA3",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(
+                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    shape = CircleShape,
+                    modifier = Modifier.border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        CircleShape
+                    )
+                ) {
+                    Text(
+                        text = "PRO MEDIA3 STUDIO",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 5.dp)
+                    )
+                }
             }
         }
     }
@@ -192,19 +381,20 @@ fun SplashScreenOverlay(onFinished: () -> Unit) {
 @Composable
 fun VideoThumbnailBox(
     video: VideoItem,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showPlayBadge: Boolean = false
 ) {
     val context = LocalContext.current
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(14.dp))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh),
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            imageVector = Icons.Default.Movie,
+            imageVector = Icons.Rounded.Movie,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             modifier = Modifier.size(30.dp)
         )
 
@@ -224,32 +414,61 @@ fun VideoThumbnailBox(
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        listOf(Color.Transparent, Color.Black.copy(alpha = 0.55f))
+                        listOf(
+                            Color.Black.copy(alpha = 0.12f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.68f)
+                        )
                     )
                 )
         )
 
-        // Resolution badge top-left
+        if (showPlayBadge) {
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(Color(0x9908080B))
+                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.75f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.PlayArrow,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.size(19.dp)
+                    )
+                }
+            }
+        }
+
         Surface(
             color = Color.Black.copy(alpha = 0.72f),
-            shape = RoundedCornerShape(6.dp),
+            shape = RoundedCornerShape(7.dp),
             modifier = Modifier
                 .align(Alignment.TopStart)
                 .padding(6.dp)
+                .border(0.5.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(7.dp))
         ) {
             Text(
                 text = video.resolutionLabel,
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp)
+                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
             )
         }
 
-        // Duration badge bottom-right
         if (video.durationMs > 0L) {
             Surface(
                 color = Color.Black.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(6.dp),
+                shape = RoundedCornerShape(7.dp),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(6.dp)
@@ -263,7 +482,6 @@ fun VideoThumbnailBox(
             }
         }
 
-        // Progress bar if partially watched
         if (video.progressFraction > 0.01f) {
             LinearProgressIndicator(
                 progress = { video.progressFraction },
@@ -286,15 +504,13 @@ fun VideoListRow(
     onFavoriteClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Surface(
+    GlassCardContainer(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .testTag("video_row_${video.id}"),
-        color = MaterialTheme.colorScheme.surface,
-        tonalElevation = 2.dp,
-        shape = RoundedCornerShape(16.dp)
+        cornerRadius = 18
     ) {
         Row(
             modifier = Modifier
@@ -305,30 +521,44 @@ fun VideoListRow(
             VideoThumbnailBox(
                 video = video,
                 modifier = Modifier
-                    .width(126.dp)
-                    .aspectRatio(16f / 10f)
+                    .width(136.dp)
+                    .aspectRatio(16f / 9.5f),
+                showPlayBadge = video.lastPositionMs > 2000L
             )
             Spacer(modifier = Modifier.width(12.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = video.title,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
                 )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${FormatUtils.formatFileSize(video.sizeBytes)} • ${video.folderName}",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                if (video.lastPositionMs > 2000L && video.durationMs > 0L) {
-                    Spacer(modifier = Modifier.height(3.dp))
+                Spacer(modifier = Modifier.height(5.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            text = FormatUtils.formatFileSize(video.sizeBytes),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
                     Text(
-                        text = "Resume ${FormatUtils.formatDuration(video.lastPositionMs)}",
+                        text = video.folderName,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+                if (video.lastPositionMs > 2000L && video.durationMs > 0L) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = "Resume • ${FormatUtils.formatDuration(video.lastPositionMs)}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -339,9 +569,10 @@ fun VideoListRow(
                 modifier = Modifier.size(48.dp)
             ) {
                 Icon(
-                    imageVector = if (video.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    imageVector = if (video.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                     contentDescription = if (video.isFavorite) "Remove favorite" else "Add favorite",
-                    tint = if (video.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = if (video.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(21.dp)
                 )
             }
             IconButton(
@@ -351,9 +582,10 @@ fun VideoListRow(
                     .testTag("video_more_${video.id}")
             ) {
                 Icon(
-                    imageVector = Icons.Default.MoreVert,
+                    imageVector = Icons.Rounded.MoreVert,
                     contentDescription = "Video options",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(21.dp)
                 )
             }
         }
@@ -367,51 +599,54 @@ fun VideoGridCard(
     onMoreClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    GlassCardContainer(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(18.dp))
             .clickable(onClick = onClick)
             .testTag("video_grid_${video.id}"),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp)
+        cornerRadius = 18
     ) {
         Column {
             VideoThumbnailBox(
                 video = video,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(16f / 10f)
+                    .aspectRatio(16f / 10f),
+                showPlayBadge = true
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 10.dp, end = 2.dp, top = 8.dp, bottom = 8.dp),
+                    .padding(start = 12.dp, end = 2.dp, top = 8.dp, bottom = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = video.title,
-                        style = MaterialTheme.typography.titleSmall,
+                        style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = FormatUtils.formatFileSize(video.sizeBytes),
+                        text = "${FormatUtils.formatFileSize(video.sizeBytes)} • ${video.folderName}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
                     )
                 }
                 IconButton(
                     onClick = onMoreClick,
-                    modifier = Modifier.size(40.dp)
+                    modifier = Modifier.size(48.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.MoreVert,
+                        imageVector = Icons.Rounded.MoreVert,
                         contentDescription = "Video options",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(19.dp)
                     )
                 }
             }
@@ -426,28 +661,19 @@ fun PermissionAndSafCard(
     onBrowseSaf: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    GlassCardContainer(
         modifier = modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer
-        ),
-        shape = RoundedCornerShape(20.dp)
+        cornerRadius = 20,
+        accentBorder = !hasPermission
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primaryContainer),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.VideoLibrary,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
+                StudioIconWell(
+                    icon = Icons.Rounded.VideoLibrary,
+                    sizeDp = 46,
+                    iconSizeDp = 24,
+                    cornerRadius = 14
+                )
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -459,7 +685,7 @@ fun PermissionAndSafCard(
                         text = if (hasPermission) {
                             "Pick individual videos or mount external SD/USB folders securely."
                         } else {
-                            "Grant media access to automatically scan device videos, or pick files with zero permissions."
+                            "Grant media access to automatically discover device videos, or pick files safely via SAF."
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -471,8 +697,10 @@ fun PermissionAndSafCard(
                 if (!hasPermission) {
                     Button(
                         onClick = onRequestPermission,
+                        shape = RoundedCornerShape(14.dp),
                         modifier = Modifier
                             .weight(1f)
+                            .height(48.dp)
                             .testTag("grant_media_permission_button"),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary,
@@ -484,12 +712,14 @@ fun PermissionAndSafCard(
                 }
                 OutlinedButton(
                     onClick = onBrowseSaf,
+                    shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .weight(1f)
+                        .height(48.dp)
                         .testTag("browse_saf_button")
                 ) {
                     Icon(
-                        imageVector = Icons.Default.FolderOpen,
+                        imageVector = Icons.Rounded.FolderOpen,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp)
                     )
@@ -521,10 +751,11 @@ fun EmptyLibraryState(
             modifier = Modifier
                 .fillMaxWidth(0.75f)
                 .aspectRatio(4f / 3f)
-                .clip(RoundedCornerShape(20.dp)),
+                .clip(RoundedCornerShape(22.dp))
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f), RoundedCornerShape(22.dp)),
             contentScale = ContentScale.Crop
         )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(18.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
@@ -539,8 +770,11 @@ fun EmptyLibraryState(
             textAlign = TextAlign.Center
         )
         if (actionLabel != null && onAction != null) {
-            Spacer(modifier = Modifier.height(16.dp))
-            Button(onClick = onAction) {
+            Spacer(modifier = Modifier.height(18.dp))
+            Button(
+                onClick = onAction,
+                shape = RoundedCornerShape(14.dp)
+            ) {
                 Text(actionLabel)
             }
         }
@@ -574,7 +808,7 @@ fun VideoContextBottomSheet(
                 VideoThumbnailBox(
                     video = video,
                     modifier = Modifier
-                        .width(88.dp)
+                        .width(92.dp)
                         .aspectRatio(16f / 10f)
                 )
                 Spacer(modifier = Modifier.width(12.dp))
@@ -594,18 +828,18 @@ fun VideoContextBottomSheet(
             }
             HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
-            SheetActionItem(Icons.Default.PlayArrow, "Play Now", onClick = { onDismiss(); onPlay() })
+            SheetActionItem(Icons.Rounded.PlayArrow, "Play Now", onClick = { onDismiss(); onPlay() })
             SheetActionItem(
-                if (video.isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                if (video.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
                 if (video.isFavorite) "Remove from Favorites" else "Add to Favorites",
                 onClick = { onDismiss(); onToggleFavorite() }
             )
-            SheetActionItem(Icons.AutoMirrored.Filled.PlaylistAdd, "Add to Playlist", onClick = { onDismiss(); onAddToPlaylist() })
-            SheetActionItem(Icons.Default.Info, "Video Properties & Metadata", onClick = { onDismiss(); onInspectInfo() })
-            SheetActionItem(Icons.Default.Share, "Share Video", onClick = { onDismiss(); onShare() })
-            SheetActionItem(Icons.Default.DriveFileRenameOutline, "Rename File", onClick = { onDismiss(); onRename() })
+            SheetActionItem(Icons.AutoMirrored.Rounded.PlaylistAdd, "Add to Playlist", onClick = { onDismiss(); onAddToPlaylist() })
+            SheetActionItem(Icons.Rounded.Info, "Video Properties & Metadata", onClick = { onDismiss(); onInspectInfo() })
+            SheetActionItem(Icons.Rounded.Share, "Share Video", onClick = { onDismiss(); onShare() })
+            SheetActionItem(Icons.Rounded.DriveFileRenameOutline, "Rename File", onClick = { onDismiss(); onRename() })
             SheetActionItem(
-                Icons.Default.Delete,
+                Icons.Rounded.Delete,
                 "Delete Video",
                 tint = MaterialTheme.colorScheme.error,
                 onClick = { onDismiss(); onDelete() }
@@ -844,13 +1078,13 @@ fun SortAndViewSheet(
                     )
                     if (selected) {
                         Icon(
-                            imageVector = if (ascending) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
+                            imageVector = if (ascending) Icons.Rounded.ArrowUpward else Icons.Rounded.ArrowDownward,
                             contentDescription = if (ascending) "Ascending" else "Descending",
                             tint = MaterialTheme.colorScheme.primary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Icon(
-                            imageVector = Icons.Default.Check,
+                            imageVector = Icons.Rounded.Check,
                             contentDescription = "Selected",
                             tint = MaterialTheme.colorScheme.primary
                         )

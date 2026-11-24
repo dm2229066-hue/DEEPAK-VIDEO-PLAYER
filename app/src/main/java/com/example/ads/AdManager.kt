@@ -51,8 +51,15 @@ class AdManager(private val appContext: Context) {
 
     companion object {
         private const val TAG = "DeepakAdManager"
+        private const val TEST_ADMOB_PUBLISHER_PREFIX = "ca-app-pub-3940256099942544"
         private const val INTERSTITIAL_COOLDOWN_MS = 180_000L // 3 minutes frequency cap
         private const val MIN_PLAYER_EXITS_BEFORE_INTERSTITIAL = 2
+
+        fun areRealAdsConfigured(): Boolean {
+            return !BuildConfig.ADMOB_BANNER_UNIT_ID.startsWith(TEST_ADMOB_PUBLISHER_PREFIX) &&
+                !BuildConfig.ADMOB_INTERSTITIAL_UNIT_ID.startsWith(TEST_ADMOB_PUBLISHER_PREFIX) &&
+                !BuildConfig.ADMOB_REWARDED_UNIT_ID.startsWith(TEST_ADMOB_PUBLISHER_PREFIX)
+        }
     }
 
     private val isMobileAdsInitialized = AtomicBoolean(false)
@@ -75,6 +82,13 @@ class AdManager(private val appContext: Context) {
     val isRewardedAdReady: StateFlow<Boolean> = _isRewardedAdReady.asStateFlow()
 
     fun gatherConsentAndInitialize(activity: Activity) {
+        if (!areRealAdsConfigured()) {
+            _canRequestAds.value = false
+            _isPrivacyOptionsRequired.value = false
+            _isRewardedAdReady.value = false
+            return
+        }
+
         val consentInfo = UserMessagingPlatform.getConsentInformation(activity)
         val params = ConsentRequestParameters.Builder().build()
 
@@ -141,7 +155,7 @@ class AdManager(private val appContext: Context) {
     }
 
     fun preloadInterstitial() {
-        if (!_canRequestAds.value || interstitialAd != null || isInterstitialLoading || !isNetworkAvailable()) {
+        if (!areRealAdsConfigured() || !_canRequestAds.value || interstitialAd != null || isInterstitialLoading || !isNetworkAvailable()) {
             return
         }
         isInterstitialLoading = true
@@ -171,6 +185,10 @@ class AdManager(private val appContext: Context) {
      * Never interrupts active playback and never triggers on every video open.
      */
     fun onReturnFromPlayer(activity: Activity, onComplete: () -> Unit) {
+        if (!areRealAdsConfigured()) {
+            onComplete()
+            return
+        }
         playerExitCount++
         val now = System.currentTimeMillis()
         val cooldownPassed = (now - lastInterstitialShownAt) >= INTERSTITIAL_COOLDOWN_MS
@@ -203,7 +221,7 @@ class AdManager(private val appContext: Context) {
     }
 
     fun preloadRewarded() {
-        if (!_canRequestAds.value || rewardedAd != null || isRewardedLoading || !isNetworkAvailable()) {
+        if (!areRealAdsConfigured() || !_canRequestAds.value || rewardedAd != null || isRewardedLoading || !isNetworkAvailable()) {
             return
         }
         isRewardedLoading = true
@@ -234,6 +252,10 @@ class AdManager(private val appContext: Context) {
         onRewardEarned: () -> Unit,
         onUnavailable: (String) -> Unit
     ) {
+        if (!areRealAdsConfigured()) {
+            onRewardEarned()
+            return
+        }
         if (!isNetworkAvailable()) {
             onUnavailable("Connect to the internet to load a rewarded ad.")
             return
@@ -282,7 +304,7 @@ fun AdBannerBar(
     canRequestAds: Boolean,
     modifier: Modifier = Modifier
 ) {
-    if (!canRequestAds) return
+    if (!canRequestAds || !AdManager.areRealAdsConfigured()) return
 
     val context = LocalContext.current
     val configuration = LocalConfiguration.current

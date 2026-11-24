@@ -16,6 +16,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -36,28 +37,28 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.VolumeUp
-import androidx.compose.material.icons.filled.AspectRatio
-import androidx.compose.material.icons.filled.Bedtime
-import androidx.compose.material.icons.filled.BrightnessHigh
-import androidx.compose.material.icons.filled.Equalizer
-import androidx.compose.material.icons.filled.Forward10
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
-import androidx.compose.material.icons.filled.Pause
-import androidx.compose.material.icons.filled.PictureInPictureAlt
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Replay10
-import androidx.compose.material.icons.filled.ScreenLockRotation
-import androidx.compose.material.icons.filled.ScreenRotation
-import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material.icons.filled.SkipPrevious
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Subtitles
-import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material.icons.filled.ZoomOutMap
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.VolumeUp
+import androidx.compose.material.icons.rounded.AspectRatio
+import androidx.compose.material.icons.rounded.Bedtime
+import androidx.compose.material.icons.rounded.BrightnessHigh
+import androidx.compose.material.icons.rounded.Equalizer
+import androidx.compose.material.icons.rounded.Forward10
+import androidx.compose.material.icons.rounded.Lock
+import androidx.compose.material.icons.rounded.LockOpen
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.PictureInPictureAlt
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Replay10
+import androidx.compose.material.icons.rounded.ScreenLockRotation
+import androidx.compose.material.icons.rounded.ScreenRotation
+import androidx.compose.material.icons.rounded.SkipNext
+import androidx.compose.material.icons.rounded.SkipPrevious
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Subtitles
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.ZoomOutMap
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -436,21 +437,26 @@ fun PlayerScreen(
         // Visual Gesture HUD
         if (activeGesture != ActiveGestureMode.NONE && gestureFeedbackText != null) {
             Surface(
-                color = Color.Black.copy(alpha = 0.78f),
-                shape = RoundedCornerShape(16.dp),
+                color = Color(0xCC0D0D12),
+                shape = RoundedCornerShape(20.dp),
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(24.dp)
+                    .border(
+                        1.dp,
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.35f),
+                        RoundedCornerShape(20.dp)
+                    )
             ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 22.dp, vertical = 14.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val hudIcon = when (activeGesture) {
-                        ActiveGestureMode.BRIGHTNESS -> Icons.Default.BrightnessHigh
-                        ActiveGestureMode.VOLUME -> Icons.AutoMirrored.Filled.VolumeUp
-                        ActiveGestureMode.ZOOM -> Icons.Default.ZoomOutMap
-                        else -> Icons.Default.FastForwardPlaceholder
+                        ActiveGestureMode.BRIGHTNESS -> Icons.Rounded.BrightnessHigh
+                        ActiveGestureMode.VOLUME -> Icons.AutoMirrored.Rounded.VolumeUp
+                        ActiveGestureMode.ZOOM -> Icons.Rounded.ZoomOutMap
+                        else -> Icons.Rounded.Forward10
                     }
                     Icon(
                         imageVector = hudIcon,
@@ -517,7 +523,7 @@ fun PlayerScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Button(onClick = { viewModel.retryPlayback() }) {
-                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(modifier = Modifier.width(6.dp))
                             Text("Retry")
                         }
@@ -558,7 +564,7 @@ fun PlayerScreen(
                                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(Icons.Default.LockOpen, contentDescription = "Unlock player", tint = MaterialTheme.colorScheme.primary)
+                                Icon(Icons.Rounded.LockOpen, contentDescription = "Unlock player", tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text("Unlock", color = Color.White, style = MaterialTheme.typography.labelLarge)
                             }
@@ -582,65 +588,79 @@ fun PlayerScreen(
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.SpaceBetween
                     ) {
-                        // Top Bar
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            IconButton(
-                                onClick = {
-                                    viewModel.onExitPlayer()
-                                    onNavigateBack()
-                                },
-                                modifier = Modifier.testTag("player_back_button")
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.White)
-                            }
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = uiState.currentVideo?.title ?: "Playing",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = Color.White,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
+                        // Top Glass Pill Bar
+                        Surface(
+                            color = Color(0x9E0B0B10),
+                            shape = RoundedCornerShape(20.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    0.75.dp,
+                                    Color.White.copy(alpha = 0.14f),
+                                    RoundedCornerShape(20.dp)
                                 )
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    if (uiState.sleepTimerRemainingSec != null) {
-                                        Text(
-                                            text = "Sleep ${FormatUtils.formatDuration(uiState.sleepTimerRemainingSec!! * 1000L)}",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    if (uiState.abPointAMs != null) {
-                                        Text(
-                                            text = if (uiState.abPointBMs != null) "A-B Loop Active" else "Point A Set",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                    }
-                                    if (uiState.zoomScale != 1.0f) {
-                                        Text(
-                                            text = "Zoom ${(uiState.zoomScale * 100).toInt()}%",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                IconButton(
+                                    onClick = {
+                                        viewModel.onExitPlayer()
+                                        onNavigateBack()
+                                    },
+                                    modifier = Modifier.testTag("player_back_button")
+                                ) {
+                                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
+                                }
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = uiState.currentVideo?.title ?: "Playing",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = Color.White,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        if (uiState.sleepTimerRemainingSec != null) {
+                                            Text(
+                                                text = "Sleep ${FormatUtils.formatDuration(uiState.sleepTimerRemainingSec!! * 1000L)}",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        if (uiState.abPointAMs != null) {
+                                            Text(
+                                                text = if (uiState.abPointBMs != null) "A-B Loop Active" else "Point A Set",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
+                                        if (uiState.zoomScale != 1.0f) {
+                                            Text(
+                                                text = "Zoom ${(uiState.zoomScale * 100).toInt()}%",
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.primary
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                            IconButton(onClick = { showSubtitleSheet = true }, modifier = Modifier.testTag("player_subtitles_button")) {
-                                Icon(Icons.Default.Subtitles, contentDescription = "Subtitles", tint = Color.White)
-                            }
-                            IconButton(onClick = { showAudioSheet = true }, modifier = Modifier.testTag("player_audio_button")) {
-                                Icon(Icons.Default.Equalizer, contentDescription = "Audio and Equalizer", tint = Color.White)
-                            }
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                IconButton(onClick = { enterPiPMode() }, modifier = Modifier.testTag("player_pip_button")) {
-                                    Icon(Icons.Default.PictureInPictureAlt, contentDescription = "Picture in Picture", tint = Color.White)
+                                IconButton(onClick = { showSubtitleSheet = true }, modifier = Modifier.testTag("player_subtitles_button")) {
+                                    Icon(Icons.Rounded.Subtitles, contentDescription = "Subtitles", tint = Color.White)
                                 }
-                            }
-                            IconButton(onClick = { showToolsSheet = true }, modifier = Modifier.testTag("player_tools_button")) {
-                                Icon(Icons.Default.Tune, contentDescription = "More player tools", tint = Color.White)
+                                IconButton(onClick = { showAudioSheet = true }, modifier = Modifier.testTag("player_audio_button")) {
+                                    Icon(Icons.Rounded.Equalizer, contentDescription = "Audio and Equalizer", tint = Color.White)
+                                }
+                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                                    IconButton(onClick = { enterPiPMode() }, modifier = Modifier.testTag("player_pip_button")) {
+                                        Icon(Icons.Rounded.PictureInPictureAlt, contentDescription = "Picture in Picture", tint = Color.White)
+                                    }
+                                }
+                                IconButton(onClick = { showToolsSheet = true }, modifier = Modifier.testTag("player_tools_button")) {
+                                    Icon(Icons.Rounded.Tune, contentDescription = "More player tools", tint = Color.White)
+                                }
                             }
                         }
 
@@ -652,152 +672,191 @@ fun PlayerScreen(
                         ) {
                             IconButton(
                                 onClick = { viewModel.playPrevious() },
-                                modifier = Modifier.size(52.dp)
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x880B0B10))
                             ) {
-                                Icon(Icons.Default.SkipPrevious, contentDescription = "Previous video", tint = Color.White, modifier = Modifier.size(32.dp))
+                                Icon(Icons.Rounded.SkipPrevious, contentDescription = "Previous video", tint = Color.White, modifier = Modifier.size(30.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             IconButton(
                                 onClick = { viewModel.seekBy(-10_000L) },
-                                modifier = Modifier.size(52.dp)
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x880B0B10))
                             ) {
-                                Icon(Icons.Default.Replay10, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(34.dp))
+                                Icon(Icons.Rounded.Replay10, contentDescription = "Rewind 10s", tint = Color.White, modifier = Modifier.size(32.dp))
                             }
                             Spacer(modifier = Modifier.width(16.dp))
-                            Surface(
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = CircleShape,
+                            Box(
                                 modifier = Modifier
-                                    .size(68.dp)
+                                    .size(76.dp)
                                     .clip(CircleShape)
-                                    .clickable { viewModel.togglePlayPause() }
-                                    .testTag("player_play_pause_button")
+                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.22f))
+                                    .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.55f), CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Box(contentAlignment = Alignment.Center) {
-                                    Icon(
-                                        imageVector = if (uiState.isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                                        contentDescription = if (uiState.isPlaying) "Pause" else "Play",
-                                        tint = MaterialTheme.colorScheme.onPrimary,
-                                        modifier = Modifier.size(38.dp)
-                                    )
+                                Surface(
+                                    color = MaterialTheme.colorScheme.primary,
+                                    shape = CircleShape,
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .clickable { viewModel.togglePlayPause() }
+                                        .testTag("player_play_pause_button")
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = if (uiState.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                            contentDescription = if (uiState.isPlaying) "Pause" else "Play",
+                                            tint = MaterialTheme.colorScheme.onPrimary,
+                                            modifier = Modifier.size(36.dp)
+                                        )
+                                    }
                                 }
                             }
                             Spacer(modifier = Modifier.width(16.dp))
                             IconButton(
                                 onClick = { viewModel.seekBy(10_000L) },
-                                modifier = Modifier.size(52.dp)
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x880B0B10))
                             ) {
-                                Icon(Icons.Default.Forward10, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(34.dp))
+                                Icon(Icons.Rounded.Forward10, contentDescription = "Forward 10s", tint = Color.White, modifier = Modifier.size(32.dp))
                             }
                             Spacer(modifier = Modifier.width(12.dp))
                             IconButton(
                                 onClick = { viewModel.playNext() },
                                 enabled = uiState.hasNext,
-                                modifier = Modifier.size(52.dp)
+                                modifier = Modifier
+                                    .size(50.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0x880B0B10))
                             ) {
                                 Icon(
-                                    Icons.Default.SkipNext,
+                                    Icons.Rounded.SkipNext,
                                     contentDescription = "Next video",
                                     tint = if (uiState.hasNext) Color.White else Color.White.copy(alpha = 0.35f),
-                                    modifier = Modifier.size(32.dp)
+                                    modifier = Modifier.size(30.dp)
                                 )
                             }
                         }
 
-                        // Bottom Seekbar & Quick Action Row
-                        Column(modifier = Modifier.fillMaxWidth()) {
-                            val displayPos = if (isScrubbing) scrubPositionMs else uiState.positionMs
-                            val maxDur = uiState.durationMs.coerceAtLeast(1L)
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically
+                        // Bottom Glass Seekbar & Quick Action Panel
+                        Surface(
+                            color = Color(0xAD0B0B10),
+                            shape = RoundedCornerShape(22.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(
+                                    0.75.dp,
+                                    Color.White.copy(alpha = 0.14f),
+                                    RoundedCornerShape(22.dp)
+                                )
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Text(
-                                    text = FormatUtils.formatDuration(displayPos),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White
-                                )
-                                Slider(
-                                    value = displayPos.toFloat().coerceIn(0f, maxDur.toFloat()),
-                                    onValueChange = {
-                                        isScrubbing = true
-                                        scrubPositionMs = it.toLong()
-                                    },
-                                    onValueChangeFinished = {
-                                        viewModel.seekTo(scrubPositionMs)
-                                        isScrubbing = false
-                                    },
-                                    valueRange = 0f..maxDur.toFloat(),
-                                    colors = SliderDefaults.colors(
-                                        thumbColor = MaterialTheme.colorScheme.primary,
-                                        activeTrackColor = MaterialTheme.colorScheme.primary,
-                                        inactiveTrackColor = Color.White.copy(alpha = 0.3f)
-                                    ),
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 8.dp)
-                                        .testTag("player_seekbar")
-                                )
-                                Text(
-                                    text = FormatUtils.formatDuration(uiState.durationMs),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = Color.White
-                                )
-                            }
+                                val displayPos = if (isScrubbing) scrubPositionMs else uiState.positionMs
+                                val maxDur = uiState.durationMs.coerceAtLeast(1L)
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                IconButton(onClick = { viewModel.toggleLock() }, modifier = Modifier.testTag("player_lock_button")) {
-                                    Icon(Icons.Default.Lock, contentDescription = "Lock controls", tint = Color.White)
-                                }
-                                Surface(
-                                    color = Color.White.copy(alpha = 0.14f),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .clickable { showToolsSheet = true }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text("${uiState.playbackSpeed}x", color = Color.White, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                                Surface(
-                                    color = Color.White.copy(alpha = 0.14f),
-                                    shape = RoundedCornerShape(10.dp),
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .clickable { viewModel.cycleResizeMode() }
-                                ) {
-                                    Row(
-                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Icon(Icons.Default.AspectRatio, contentDescription = "Aspect ratio mode", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(uiState.resizeMode.label, color = Color.White, style = MaterialTheme.typography.labelMedium)
-                                    }
-                                }
-                                IconButton(onClick = { viewModel.cycleOrientationMode() }) {
-                                    Icon(Icons.Default.ScreenRotation, contentDescription = "Rotate screen", tint = Color.White)
-                                }
-                                IconButton(onClick = { viewModel.toggleRotationLock() }) {
-                                    Icon(
-                                        Icons.Default.ScreenLockRotation,
-                                        contentDescription = "Lock rotation",
-                                        tint = if (uiState.isRotationLocked) MaterialTheme.colorScheme.primary else Color.White
+                                    Text(
+                                        text = FormatUtils.formatDuration(displayPos),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White
+                                    )
+                                    Slider(
+                                        value = displayPos.toFloat().coerceIn(0f, maxDur.toFloat()),
+                                        onValueChange = {
+                                            isScrubbing = true
+                                            scrubPositionMs = it.toLong()
+                                        },
+                                        onValueChangeFinished = {
+                                            viewModel.seekTo(scrubPositionMs)
+                                            isScrubbing = false
+                                        },
+                                        valueRange = 0f..maxDur.toFloat(),
+                                        colors = SliderDefaults.colors(
+                                            thumbColor = MaterialTheme.colorScheme.primary,
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                                        ),
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .padding(horizontal = 8.dp)
+                                            .testTag("player_seekbar")
+                                    )
+                                    Text(
+                                        text = FormatUtils.formatDuration(uiState.durationMs),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = Color.White
                                     )
                                 }
-                                IconButton(onClick = { showToolsSheet = true }) {
-                                    Icon(Icons.Default.Bedtime, contentDescription = "Sleep timer and A-B loop", tint = Color.White)
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    IconButton(onClick = { viewModel.toggleLock() }, modifier = Modifier.testTag("player_lock_button")) {
+                                        Icon(Icons.Rounded.Lock, contentDescription = "Lock controls", tint = Color.White)
+                                    }
+                                    Surface(
+                                        color = Color.White.copy(alpha = 0.12f),
+                                        shape = CircleShape,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .border(0.75.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                                            .clickable { showToolsSheet = true }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Rounded.Speed, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("${uiState.playbackSpeed}x", color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                    Surface(
+                                        color = Color.White.copy(alpha = 0.12f),
+                                        shape = CircleShape,
+                                        modifier = Modifier
+                                            .clip(CircleShape)
+                                            .border(0.75.dp, Color.White.copy(alpha = 0.18f), CircleShape)
+                                            .clickable { viewModel.cycleResizeMode() }
+                                    ) {
+                                        Row(
+                                            modifier = Modifier.padding(horizontal = 11.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Icon(Icons.Rounded.AspectRatio, contentDescription = "Aspect ratio mode", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text(uiState.resizeMode.label, color = Color.White, style = MaterialTheme.typography.labelMedium)
+                                        }
+                                    }
+                                    IconButton(onClick = { viewModel.cycleOrientationMode() }) {
+                                        Icon(Icons.Rounded.ScreenRotation, contentDescription = "Rotate screen", tint = Color.White)
+                                    }
+                                    IconButton(onClick = { viewModel.toggleRotationLock() }) {
+                                        Icon(
+                                            Icons.Rounded.ScreenLockRotation,
+                                            contentDescription = "Lock rotation",
+                                            tint = if (uiState.isRotationLocked) MaterialTheme.colorScheme.primary else Color.White
+                                        )
+                                    }
+                                    IconButton(onClick = { showToolsSheet = true }) {
+                                        Icon(Icons.Rounded.Bedtime, contentDescription = "Sleep timer and A-B loop", tint = Color.White)
+                                    }
                                 }
                             }
                         }
@@ -848,9 +907,6 @@ fun PlayerScreen(
         )
     }
 }
-
-private val Icons.Filled.FastForwardPlaceholder
-    get() = Icons.Default.Forward10
 
 private fun safePipRational(width: Int, height: Int): Rational {
     if (width <= 0 || height <= 0) return Rational(16, 9)
