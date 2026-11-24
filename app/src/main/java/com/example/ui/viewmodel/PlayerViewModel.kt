@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import kotlin.math.roundToLong
 
 internal class SeekStateTracker(
     private val nowMs: () -> Long = { SystemClock.elapsedRealtime() },
@@ -123,6 +124,21 @@ internal class SeekStateTracker(
                 positionMs.coerceAtLeast(0L)
             }
         }
+
+        fun normalizedToPositionMs(sliderValue: Float, durationMs: Long): Long {
+            if (durationMs <= 0L) return 0L
+            val clampedFraction = sliderValue.coerceIn(0f, 1f)
+            return (clampedFraction.toDouble() * durationMs.toDouble())
+                .roundToLong()
+                .coerceIn(0L, durationMs)
+        }
+
+        fun positionToNormalized(positionMs: Long, durationMs: Long): Float {
+            if (durationMs <= 0L) return 0f
+            return (positionMs.coerceIn(0L, durationMs).toDouble() / durationMs.toDouble())
+                .toFloat()
+                .coerceIn(0f, 1f)
+        }
     }
 }
 
@@ -195,6 +211,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     private var tickerJob: Job? = null
     private var sleepTimerJob: Job? = null
     private val seekTracker = SeekStateTracker()
+    private var isUserDraggingSeekBar: Boolean = false
+    private var userHasSoughtInCurrentItem: Boolean = false
 
     private val playerListener = object : Player.Listener {
         override fun onIsPlayingChanged(isPlaying: Boolean) {
@@ -214,6 +232,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
+            if (isUserDraggingSeekBar) return
             val newPosMs = newPosition.positionMs.coerceAtLeast(0L)
             when (reason) {
                 Player.DISCONTINUITY_REASON_SEEK_ADJUSTMENT -> {
@@ -239,11 +258,15 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             val buffering = playbackState == Player.STATE_BUFFERING
             val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
             val resolvedDur = if (dur > 0L) dur else _uiState.value.durationMs
-            val resolvedPos = seekTracker.resolveTickerPosition(
-                playerPositionMs = player.currentPosition,
-                isReady = playbackState == Player.STATE_READY,
-                isPlaying = player.isPlaying
-            )
+            val resolvedPos = if (isUserDraggingSeekBar) {
+                _uiState.value.positionMs
+            } else {
+                seekTracker.resolveTickerPosition(
+                    playerPositionMs = player.currentPosition,
+                    isReady = playbackState == Player.STATE_READY,
+                    isPlaying = player.isPlaying
+                )
+            }
             _uiState.value = _uiState.value.copy(
                 isBuffering = buffering,
                 durationMs = resolvedDur,
@@ -302,6 +325,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun startPlayback(queue: List<VideoItem>, startIndex: Int) {
         if (queue.isEmpty()) return
         val safeIndex = startIndex.coerceIn(0, queue.lastIndex)
+        userHasSoughtInCurrentItem = false
+        isUserDraggingSeekBar = false
         loadQueueJob?.cancel()
         loadQueueJob = viewModelScope.launch {
             val prefs = prefsRepo.preferencesFlow.first()
@@ -369,8 +394,14 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         val speed = history?.preferredSpeed?.takeIf { it in 0.25f..4.0f }
             ?: _uiState.value.playbackSpeed
 
-        if (resumePos > 0L) {
-            seekTracker.beginSeek(resumePos, 0L)
+        val initialPositionMs = if (userHasSoughtInCurrentItem) {
+            seekTracker.pendingTargetMs ?: _uiState.value.positionMs
+        } else {
+            resumePos
+        }
+
+        if (initialPositionMs > 0L) {
+            seekTracker.beginSeek(initialPositionMs, 0L)
         } else {
             seekTracker.clear()
         }
@@ -378,8 +409,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         _uiState.value = _uiState.value.copy(
             currentIndex = index,
             currentVideo = item,
-            durationMs = item.durationMs,
-            positionMs = resumePos,
+            durationMs = if (item.durationMs > 0L) item.durationMs else _uiState.value.durationMs,
+            positionMs = initialPositionMs,
             playbackSpeed = speed,
             externalSubtitleName = subName,
             subtitleOffsetMs = offset,
@@ -388,7 +419,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             errorMessage = null
         )
 
-        player.setMediaItem(mediaItem, resumePos)
+        player.setMediaItem(mediaItem, initialPositionMs)
         player.playbackParameters = PlaybackParameters(speed)
         player.prepare()
         player.play()
@@ -427,7 +458,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
+    fun setSeekBarDragging(dragging: Boolean) {
+        isUserDraggingSeekBar = dragging
+    }
+
+    fun seekToNormalized(sliderValue: Float) {
+        val dur = resolveDurationMs()
+        val target = SeekStateTracker.normalizedToPositionMs(sliderValue, dur)
+        isUserDraggingSeekBar = false
+        seekTo(target)
+    }
+
     fun seekTo(positionMs: Long) {
+        userHasSoughtInCurrentItem = true
         val dur = resolveDurationMs()
         val target = SeekStateTracker.clampSeekTarget(positionMs, dur)
         val origin = player.currentPosition.coerceAtLeast(0L)
@@ -447,6 +490,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     fun playNext() {
         if (!_uiState.value.hasNext) return
         persistCurrentProgress()
+        userHasSoughtInCurrentItem = false
+        isUserDraggingSeekBar = false
         val nextIdx = _uiState.value.currentIndex + 1
         loadQueueJob?.cancel()
         loadQueueJob = viewModelScope.launch { loadQueueItem(nextIdx) }
@@ -458,6 +503,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
             return
         }
         persistCurrentProgress()
+        userHasSoughtInCurrentItem = false
+        isUserDraggingSeekBar = false
         val prevIdx = _uiState.value.currentIndex - 1
         loadQueueJob?.cancel()
         loadQueueJob = viewModelScope.launch { loadQueueItem(prevIdx) }
@@ -705,13 +752,19 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         tickerJob = viewModelScope.launch {
             while (true) {
                 delay(250L)
+                val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
+                val resolvedDur = if (dur > 0L) dur else _uiState.value.durationMs
+                if (isUserDraggingSeekBar) {
+                    if (resolvedDur != _uiState.value.durationMs) {
+                        _uiState.value = _uiState.value.copy(durationMs = resolvedDur)
+                    }
+                    continue
+                }
                 val pos = seekTracker.resolveTickerPosition(
                     playerPositionMs = player.currentPosition,
                     isReady = player.playbackState == Player.STATE_READY,
                     isPlaying = player.isPlaying
                 )
-                val dur = player.duration.takeIf { it > 0L && it != C.TIME_UNSET } ?: 0L
-                val resolvedDur = if (dur > 0L) dur else _uiState.value.durationMs
                 if (pos != _uiState.value.positionMs || resolvedDur != _uiState.value.durationMs) {
                     _uiState.value = _uiState.value.copy(
                         positionMs = pos,

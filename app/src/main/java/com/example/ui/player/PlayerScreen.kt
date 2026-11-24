@@ -70,6 +70,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -91,10 +92,12 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.view.WindowCompat
@@ -107,6 +110,7 @@ import androidx.media3.ui.PlayerView
 import com.example.data.model.FormatUtils
 import com.example.ui.viewmodel.PlayerOrientationMode
 import com.example.ui.viewmodel.PlayerViewModel
+import com.example.ui.viewmodel.SeekStateTracker
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 import kotlin.math.roundToLong
@@ -174,8 +178,10 @@ fun PlayerScreen(
     var gestureProgress by remember { mutableFloatStateOf(0f) }
     var doubleTapBurstText by remember { mutableStateOf<String?>(null) }
 
-    var isScrubbing by remember { mutableStateOf(false) }
-    var scrubPositionMs by remember { mutableLongStateOf(0L) }
+    var isSeekBarDragging by remember { mutableStateOf(false) }
+    var seekBarDragFraction by remember { mutableFloatStateOf(0f) }
+    var isGestureSeeking by remember { mutableStateOf(false) }
+    var gestureSeekPositionMs by remember { mutableLongStateOf(0L) }
 
     val latestUiState by rememberUpdatedState(uiState)
     val latestContainerSize by rememberUpdatedState(containerSize)
@@ -228,17 +234,26 @@ fun PlayerScreen(
         }
     }
 
+    // Reset SeekBar drag flag if controls hide or player locks
+    LaunchedEffect(controlsVisible, uiState.isLocked) {
+        if ((!controlsVisible || uiState.isLocked) && isSeekBarDragging) {
+            isSeekBarDragging = false
+            viewModel.setSeekBarDragging(false)
+        }
+    }
+
     // Auto-hide controls while playing
     LaunchedEffect(
         controlsVisible,
         uiState.isPlaying,
         uiState.isLocked,
-        isScrubbing,
+        isSeekBarDragging,
+        isGestureSeeking,
         showSubtitleSheet,
         showAudioSheet,
         showToolsSheet
     ) {
-        if (controlsVisible && uiState.isPlaying && !isScrubbing && !showSubtitleSheet && !showAudioSheet && !showToolsSheet) {
+        if (controlsVisible && uiState.isPlaying && !isSeekBarDragging && !isGestureSeeking && !showSubtitleSheet && !showAudioSheet && !showToolsSheet) {
             delay(3600L)
             controlsVisible = false
         }
@@ -392,7 +407,7 @@ fun PlayerScreen(
                                         val zoomChange = event.calculateZoom()
                                         if (zoomChange != 1f) {
                                             if (mode == ActiveGestureMode.SEEK) {
-                                                isScrubbing = false
+                                                isGestureSeeking = false
                                                 hasSeekTarget = false
                                             }
                                             mode = ActiveGestureMode.ZOOM
@@ -448,8 +463,8 @@ fun PlayerScreen(
                                             )
                                             committedSeekTargetMs = seekResult.targetMs
                                             hasSeekTarget = true
-                                            isScrubbing = true
-                                            scrubPositionMs = seekResult.targetMs
+                                            isGestureSeeking = true
+                                            gestureSeekPositionMs = seekResult.targetMs
                                             activeSeekDirection = if (seekResult.appliedDeltaMs < 0L) -1 else 1
                                             val sign = if (seekResult.appliedDeltaMs >= 0L) "+" else "-"
                                             gestureFeedbackText =
@@ -489,7 +504,7 @@ fun PlayerScreen(
                                     viewModel.seekTo(committedSeekTargetMs)
                                 }
                             } finally {
-                                isScrubbing = false
+                                isGestureSeeking = false
                                 activeGesture = ActiveGestureMode.NONE
                                 gestureFeedbackText = null
                             }
@@ -836,53 +851,73 @@ fun PlayerScreen(
                             ) {
                                 val totalDurMs = uiState.durationMs.coerceAtLeast(0L)
                                 val isSeekable = totalDurMs > 0L
-                                val displayPos = if (isScrubbing) scrubPositionMs else uiState.positionMs
-                                val sliderMax = totalDurMs.coerceAtLeast(1L).toFloat()
+                                val playbackFraction = SeekStateTracker.positionToNormalized(uiState.positionMs, totalDurMs)
+                                val activeSliderValue = when {
+                                    !isSeekable -> 0f
+                                    isSeekBarDragging -> seekBarDragFraction.coerceIn(0f, 1f)
+                                    isGestureSeeking -> SeekStateTracker.positionToNormalized(gestureSeekPositionMs, totalDurMs)
+                                    else -> playbackFraction
+                                }
+                                val displayPositionMs = when {
+                                    isSeekBarDragging -> SeekStateTracker.normalizedToPositionMs(seekBarDragFraction, totalDurMs)
+                                    isGestureSeeking -> gestureSeekPositionMs
+                                    else -> uiState.positionMs
+                                }
 
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = FormatUtils.formatDuration(displayPos),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White
-                                    )
-                                    Slider(
-                                        value = if (isSeekable) {
-                                            displayPos.toFloat().coerceIn(0f, sliderMax)
-                                        } else {
-                                            0f
-                                        },
-                                        enabled = isSeekable,
-                                        onValueChange = { rawValue ->
-                                            if (!isSeekable) return@Slider
-                                            val target = rawValue.roundToLong().coerceIn(0L, totalDurMs)
-                                            isScrubbing = true
-                                            scrubPositionMs = target
-                                        },
-                                        onValueChangeFinished = {
-                                            if (isSeekable && isScrubbing) {
-                                                viewModel.seekTo(scrubPositionMs)
-                                            }
-                                            isScrubbing = false
-                                        },
-                                        valueRange = 0f..sliderMax,
-                                        colors = SliderDefaults.colors(
-                                            thumbColor = MaterialTheme.colorScheme.primary,
-                                            activeTrackColor = MaterialTheme.colorScheme.primary,
-                                            inactiveTrackColor = Color.White.copy(alpha = 0.25f)
-                                        ),
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .padding(horizontal = 8.dp)
-                                            .testTag("player_seekbar")
-                                    )
-                                    Text(
-                                        text = FormatUtils.formatDuration(totalDurMs),
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = Color.White
-                                    )
+                                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = FormatUtils.formatDuration(displayPositionMs),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color.White
+                                        )
+                                        Slider(
+                                            value = activeSliderValue,
+                                            enabled = isSeekable,
+                                            onValueChange = { normalizedValue ->
+                                                if (!isSeekable) return@Slider
+                                                val clamped = normalizedValue.coerceIn(0f, 1f)
+                                                if (!isSeekBarDragging) {
+                                                    isSeekBarDragging = true
+                                                    viewModel.setSeekBarDragging(true)
+                                                }
+                                                seekBarDragFraction = clamped
+                                            },
+                                            onValueChangeFinished = {
+                                                if (isSeekable && isSeekBarDragging) {
+                                                    val finalFraction = seekBarDragFraction.coerceIn(0f, 1f)
+                                                    val targetPositionMs = SeekStateTracker.normalizedToPositionMs(
+                                                        sliderValue = finalFraction,
+                                                        durationMs = totalDurMs
+                                                    )
+                                                    isSeekBarDragging = false
+                                                    viewModel.setSeekBarDragging(false)
+                                                    viewModel.seekTo(targetPositionMs)
+                                                } else {
+                                                    isSeekBarDragging = false
+                                                    viewModel.setSeekBarDragging(false)
+                                                }
+                                            },
+                                            valueRange = 0f..1f,
+                                            colors = SliderDefaults.colors(
+                                                thumbColor = MaterialTheme.colorScheme.primary,
+                                                activeTrackColor = MaterialTheme.colorScheme.primary,
+                                                inactiveTrackColor = Color.White.copy(alpha = 0.25f)
+                                            ),
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(horizontal = 8.dp)
+                                                .testTag("player_seekbar")
+                                        )
+                                        Text(
+                                            text = FormatUtils.formatDuration(totalDurMs),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = Color.White
+                                        )
+                                    }
                                 }
 
                                 Row(

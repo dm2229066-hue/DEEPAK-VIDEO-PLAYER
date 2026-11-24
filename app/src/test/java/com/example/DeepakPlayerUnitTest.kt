@@ -204,4 +204,43 @@ class DeepakPlayerUnitTest {
         assertEquals(1_798_500L, released)
         assertEquals(null, tracker.pendingTargetMs)
     }
+
+    @Test
+    fun normalizedSeekBarMappingPassesAllRequiredScenariosAndEdgeCases() {
+        // Test A: Video duration = 300s (300_000ms). Drag slider to 75% -> 225s (225_000ms)
+        val dur300s = 300_000L
+        assertEquals(225_000L, SeekStateTracker.normalizedToPositionMs(0.75f, dur300s))
+        assertEquals("03:45", FormatUtils.formatDuration(225_000L))
+
+        // Test B: Video duration = 300s. Drag slider to 25% -> 75s (75_000ms)
+        assertEquals(75_000L, SeekStateTracker.normalizedToPositionMs(0.25f, dur300s))
+        assertEquals("01:15", FormatUtils.formatDuration(75_000L))
+
+        // Test C: Video duration = 600s. Drag slider to 50% -> 300s (300_000ms)
+        val dur600s = 600_000L
+        assertEquals(300_000L, SeekStateTracker.normalizedToPositionMs(0.50f, dur600s))
+
+        // Test D: Drag slider from 80% to 20% on 600s video -> 120s (120_000ms)
+        val start80 = SeekStateTracker.normalizedToPositionMs(0.80f, dur600s)
+        assertEquals(480_000L, start80)
+        val end20 = SeekStateTracker.normalizedToPositionMs(0.20f, dur600s)
+        assertEquals(120_000L, end20)
+
+        // Test E: Pause video, drag slider to 70% -> 70% of total duration
+        assertEquals(210_000L, SeekStateTracker.normalizedToPositionMs(0.70f, dur300s))
+        assertEquals(420_000L, SeekStateTracker.normalizedToPositionMs(0.70f, dur600s))
+
+        // Test F: Drag slider to 100% -> end of video, 0% -> start of video
+        assertEquals(dur300s, SeekStateTracker.normalizedToPositionMs(1.0f, dur300s))
+        assertEquals(0L, SeekStateTracker.normalizedToPositionMs(0.0f, dur300s))
+
+        // Edge cases: zero/unknown duration, negative/overflow slider input, round-trip normalized position
+        assertEquals(0L, SeekStateTracker.normalizedToPositionMs(0.75f, 0L))
+        assertEquals(0L, SeekStateTracker.normalizedToPositionMs(0.75f, -1000L))
+        assertEquals(0L, SeekStateTracker.normalizedToPositionMs(-0.5f, dur300s))
+        assertEquals(dur300s, SeekStateTracker.normalizedToPositionMs(1.5f, dur300s))
+        assertEquals(0.75f, SeekStateTracker.positionToNormalized(225_000L, dur300s), 0.0001f)
+        assertEquals(0.25f, SeekStateTracker.positionToNormalized(75_000L, dur300s), 0.0001f)
+        assertEquals(0f, SeekStateTracker.positionToNormalized(50_000L, 0L), 0.0001f)
+    }
 }
