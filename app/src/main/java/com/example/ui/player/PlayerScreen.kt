@@ -887,17 +887,10 @@ fun PlayerScreen(
                                                 seekBarDragFraction = clamped
                                             },
                                             onValueChangeFinished = {
-                                                if (isSeekable && isSeekBarDragging) {
-                                                    val finalFraction = seekBarDragFraction.coerceIn(0f, 1f)
-                                                    val targetPositionMs = SeekStateTracker.normalizedToPositionMs(
-                                                        sliderValue = finalFraction,
-                                                        durationMs = totalDurMs
-                                                    )
+                                                if (isSeekBarDragging) {
+                                                    viewModel.seekToNormalized(seekBarDragFraction)
                                                     isSeekBarDragging = false
-                                                    viewModel.setSeekBarDragging(false)
-                                                    viewModel.seekTo(targetPositionMs)
                                                 } else {
-                                                    isSeekBarDragging = false
                                                     viewModel.setSeekBarDragging(false)
                                                 }
                                             },
